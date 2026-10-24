@@ -21,7 +21,7 @@ const STATUS_COPY = {
   capturing: "Extrayendo una sola foto validada…",
 };
 
-export default function LivenessCapture({ onCapture, onReset }) {
+export default function LivenessCapture({ onCapture, onReset, autoStart = false }) {
   const videoRef = useRef(null);
   const landmarkerRef = useRef(null);
   const trackerRef = useRef(null);
@@ -30,6 +30,7 @@ export default function LivenessCapture({ onCapture, onReset }) {
   const lastTsRef = useRef(-1);
   const capturingRef = useRef(false);
   const uiKeyRef = useRef("");
+  const autoStartedRef = useRef(false);
 
   const [phase, setPhase] = useState("idle");
   const [error, setError] = useState("");
@@ -47,6 +48,14 @@ export default function LivenessCapture({ onCapture, onReset }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    // Strict Mode runs effects twice in dev; a second begin() would open a second camera stream.
+    if (!autoStart || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    begin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]);
 
   async function begin() {
     setError("");

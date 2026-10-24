@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     duplicate_face_distance: float = 0.3
     adult_age: int = 18
 
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.8-flash"
+
+    # Echoes the data read from the MRZ back to the client. Local debugging only, never in production.
+    debug_passport: bool = False
+
     @property
     def cors_origin_list(self) -> List[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

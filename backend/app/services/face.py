@@ -13,6 +13,14 @@ def _deepface():
     return DeepFace
 
 
+def has_face(image: np.ndarray) -> bool:
+    try:
+        _deepface().extract_faces(img_path=image, enforce_detection=True)
+    except ValueError:
+        return False
+    return True
+
+
 def faces_match(selfie: np.ndarray, document: np.ndarray) -> bool:
     result = _deepface().verify(
         img1_path=selfie,

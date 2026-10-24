@@ -41,6 +41,8 @@ def ingest(
         document_bytes = document.file.read()
         document_image = decode_image(document_bytes)
         document_data = passport.read_passport(document_bytes)
+    except passport.ReaderUnavailableError as error:
+        raise HTTPException(status_code=503, detail=str(error))
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error))
 

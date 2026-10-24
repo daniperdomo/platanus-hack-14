@@ -1,11 +1,10 @@
 from contextlib import asynccontextmanager
 
-import pytesseract
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.formparsers import MultiPartParser
 
-from app.api import ingest, verify
+from app.api import debug, document, ingest, verify
 from app.core.config import settings
 from app.db.database import init_db
 from app.services import face
@@ -20,8 +19,8 @@ MultiPartParser.max_file_size = MAX_UPLOAD_IN_MEMORY
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
-    # Fail at boot, not on the first /ingest, if the image is missing the tesseract binary.
-    pytesseract.get_tesseract_version()
+    if not settings.gemini_api_key:
+        raise RuntimeError("GEMINI_API_KEY no está definida: no se pueden leer pasaportes.")
     face._deepface().build_model(settings.face_model)
     yield
 
@@ -35,6 +34,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(debug.router)
+app.include_router(document.router)
 app.include_router(ingest.router)
 app.include_router(verify.router)
 

@@ -3,47 +3,49 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CameraCapture from "./CameraCapture";
+import { checkDocument } from "@/lib/api";
 import { validateDocumentImage } from "@/lib/documentImage";
 import { fileToJpeg } from "@/lib/image";
 import { saveDocumentDraft } from "@/lib/vault";
 
 export default function DocumentCapture() {
   const router = useRouter();
-  const [file, setFile] = useState(null);
   const [preview, setPreview] = useState("");
+  const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [debug, setDebug] = useState(null);
 
-  function onCapture(nextFile) {
+  async function onCapture(file) {
     if (preview) URL.revokeObjectURL(preview);
-    setFile(nextFile);
-    setPreview(URL.createObjectURL(nextFile));
+    setPreview(URL.createObjectURL(file));
     setError("");
+    setDebug(null);
+    setStatus("checking");
+
+    try {
+      await validateDocumentImage(file);
+      const jpeg = await fileToJpeg(file, "pasaporte.jpg");
+      const result = await checkDocument(jpeg);
+      await saveDocumentDraft({ file: jpeg });
+      if (result.debug) {
+        setDebug(result.debug);
+        setStatus("debug");
+        return;
+      }
+      setStatus("ok");
+      router.push("/boveda");
+    } catch (err) {
+      setError(err?.message ?? "No pudimos verificar tu pasaporte.");
+      setStatus("error");
+    }
   }
 
   function retake() {
     if (preview) URL.revokeObjectURL(preview);
-    setFile(null);
     setPreview("");
-  }
-
-  async function confirm() {
-    if (!file) {
-      setError("Fotografía o sube la página de datos de tu pasaporte.");
-      return;
-    }
-
-    setBusy(true);
     setError("");
-    try {
-      await validateDocumentImage(file);
-      const jpeg = await fileToJpeg(file, "pasaporte.jpg");
-      await saveDocumentDraft({ file: jpeg });
-      router.push("/boveda");
-    } catch (err) {
-      setError(err?.message ?? "No pudimos guardar el pasaporte.");
-      setBusy(false);
-    }
+    setDebug(null);
+    setStatus("idle");
   }
 
   return (
@@ -62,34 +64,64 @@ export default function DocumentCapture() {
         {preview ? (
           <div className="preview">
             <img src={preview} alt="Foto del pasaporte capturada" />
-            <div className="camera__actions">
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={retake}
-                disabled={busy}
-              >
-                Volver a tomar
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={confirm}
-                disabled={busy}
-              >
-                {busy ? "Guardando…" : "Continuar a la prueba de vida"}
-              </button>
-            </div>
+
+            {status === "checking" ? (
+              <p className="cta-status" role="status">
+                Verificando tu pasaporte…
+              </p>
+            ) : null}
+
+            {status === "ok" ? (
+              <p className="cta-status" role="status">
+                ✓ Pasaporte verificado. Iniciando la prueba de vida…
+              </p>
+            ) : null}
+
+            {status === "debug" && debug ? (
+              <>
+                <p className="cta-status" role="status">
+                  ✓ Pasaporte verificado. Modo debug: esto es lo que se leyó de la MRZ.
+                </p>
+                <div className="token-box">
+                  {Object.entries(debug).map(([name, value]) => (
+                    <div className="token-row" key={name}>
+                      <code>
+                        {name}: {JSON.stringify(value)}
+                      </code>
+                    </div>
+                  ))}
+                </div>
+                <div className="camera__actions">
+                  <button type="button" className="btn btn--secondary" onClick={retake}>
+                    Volver a tomar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => router.push("/boveda")}
+                  >
+                    Continuar a la prueba de vida
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {status === "error" ? (
+              <>
+                <p className="cta-status is-error" role="alert">
+                  {error}
+                </p>
+                <div className="camera__actions">
+                  <button type="button" className="btn btn--primary" onClick={retake}>
+                    Volver a tomar
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
         ) : (
           <CameraCapture onCapture={onCapture} />
         )}
-
-        {error ? (
-          <p className="cta-status is-error" role="status">
-            {error}
-          </p>
-        ) : null}
       </div>
     </div>
   );

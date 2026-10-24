@@ -116,6 +116,13 @@ def test_mrz_failure_is_422_with_message(client, jpeg_bytes, pipeline):
     assert response.json()["detail"] == "Los dígitos de control de la MRZ no coinciden."
 
 
+def test_reader_outage_is_503(client, jpeg_bytes, pipeline):
+    pipeline["document"] = passport.ReaderUnavailableError("El lector no está disponible.")
+    response = post_ingest(client, jpeg_bytes)
+    assert response.status_code == 503
+    assert pipeline["saved"] == []
+
+
 def test_face_mismatch_is_422(client, jpeg_bytes, pipeline):
     pipeline["faces_match"] = False
     response = post_ingest(client, jpeg_bytes)

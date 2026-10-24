@@ -7,12 +7,29 @@ function errorMessage(body, status) {
 }
 
 async function request(path, options) {
-  const response = await fetch(`${API_URL}${path}`, options);
+  let response;
+  try {
+    response = await fetch(`${API_URL}${path}`, options);
+  } catch {
+    throw new Error("No pudimos conectar con el oráculo. Revisa tu conexión e inténtalo de nuevo.");
+  }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(errorMessage(body, response.status));
   }
   return body;
+}
+
+export function checkDocument(document) {
+  const form = new FormData();
+  form.append("document", document, document.name ?? "pasaporte.jpg");
+  return request("/document/check", { method: "POST", body: form });
+}
+
+export function debugDocument(document) {
+  const form = new FormData();
+  form.append("document", document, document.name ?? "pasaporte.jpg");
+  return request("/debug/document", { method: "POST", body: form });
 }
 
 export function ingest({ selfie, document, devicePublicJwk }) {

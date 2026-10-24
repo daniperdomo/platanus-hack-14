@@ -86,7 +86,7 @@ export default function VaultFlow() {
 
   return (
     <>
-      <LivenessCapture onCapture={onCapture} onReset={() => setError("")} />
+      <LivenessCapture autoStart onCapture={onCapture} onReset={() => setError("")} />
       {sending ? (
         <p className="liveness__status" role="status">
           Verificando con el oráculo…
