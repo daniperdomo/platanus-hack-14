@@ -6,6 +6,7 @@ export function loadSession() {
   const raw = window.localStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   const session = JSON.parse(raw);
+  if (session?.guest) return session;
   if (!session?.token || !session?.username) return null;
   return session;
 }
@@ -26,4 +27,10 @@ export function loadVault() {
 export function endSession() {
   window.localStorage.removeItem(SESSION_KEY);
   window.sessionStorage.removeItem(VAULT_KEY);
+}
+
+export function startGuestSession() {
+  const session = { guest: true, email: null, startedAt: new Date().toISOString() };
+  window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  return session;
 }

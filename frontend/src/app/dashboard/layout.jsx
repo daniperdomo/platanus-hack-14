@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/dashboard/Sidebar";
+import { SessionContext } from "@/components/dashboard/SessionContext";
 import { endSession, loadSession } from "@/lib/session";
 
 export default function DashboardLayout({ children }) {
@@ -26,9 +27,11 @@ export default function DashboardLayout({ children }) {
   if (!session) return null;
 
   return (
-    <div className="dashboard">
-      <Sidebar username={session.username} onLogout={logout} />
-      <main className="dashboard__main">{children}</main>
-    </div>
+    <SessionContext.Provider value={session}>
+      <div className="dashboard">
+        <Sidebar session={session} onLogout={logout} />
+        <main className="dashboard__main">{children}</main>
+      </div>
+    </SessionContext.Provider>
   );
 }

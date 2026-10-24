@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import EmptyState from "@/components/dashboard/EmptyState";
 import useVault from "@/components/dashboard/useVault";
 import { DATA_FIELDS } from "@/lib/mockData";
-import { loadVault } from "@/lib/session";
 
 export default function DataPage() {
-  const { connections } = useVault();
-  const [vault, setVault] = useState(null);
+  const { connections, storedData } = useVault();
   const sharedWith = (field) =>
     connections.filter((site) => site.status === "activa" && site.fields.includes(field));
-
-  useEffect(() => setVault(loadVault()), []);
 
   return (
     <>
@@ -25,7 +21,12 @@ export default function DataPage() {
       </header>
 
       <section className="panel">
-        {vault && Object.keys(vault).length > 0 ? (
+        {storedData.length === 0 ? (
+          <EmptyState
+            title="Tu bóveda está vacía"
+            body="Verifica tu identidad para guardar tus datos cifrados y decidir con quién compartirlos."
+          />
+        ) : (
           <table className="data-table">
             <thead>
               <tr>
@@ -35,13 +36,13 @@ export default function DataPage() {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(vault).map(([field, value]) => {
+              {storedData.map(({ field, value }) => {
                 const sites = sharedWith(field);
                 return (
                   <tr key={field}>
                     <td>{DATA_FIELDS[field] ?? field}</td>
                     <td>
-                      <code>{String(value)}</code>
+                      <code>{value}</code>
                     </td>
                     <td className="text-muted">
                       {sites.length > 0 ? sites.map((site) => site.name).join(", ") : "Nadie"}
@@ -51,10 +52,6 @@ export default function DataPage() {
               })}
             </tbody>
           </table>
-        ) : (
-          <p className="text-muted">
-            Vuelve a iniciar sesión en esta pestaña para descifrar tu bóveda.
-          </p>
         )}
       </section>
     </>

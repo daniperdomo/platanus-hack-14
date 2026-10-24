@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
+  { href: "/dashboard/analytics", label: "Analytics" },
   { href: "/dashboard", label: "Resumen" },
   { href: "/dashboard/sitios", label: "Sitios conectados" },
   { href: "/dashboard/actividad", label: "Actividad" },
@@ -11,7 +12,7 @@ const LINKS = [
   { href: "/dashboard/dispositivos", label: "Dispositivos" },
 ];
 
-export default function Sidebar({ username, onLogout }) {
+export default function Sidebar({ session, onLogout }) {
   const pathname = usePathname();
 
   return (
@@ -34,9 +35,9 @@ export default function Sidebar({ username, onLogout }) {
       </nav>
 
       <div className="sidebar__footer">
-        <span className="sidebar__email">{username}</span>
+        <span className="sidebar__email">{session.guest ? "Invitado" : session.username}</span>
         <button type="button" className="btn btn--secondary btn--sm" onClick={onLogout}>
-          Cerrar sesión
+          {session.guest ? "Salir" : "Cerrar sesión"}
         </button>
       </div>
     </aside>

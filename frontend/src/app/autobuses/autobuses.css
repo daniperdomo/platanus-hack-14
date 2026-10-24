@@ -214,7 +214,7 @@
 .bus-trip__done {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #15803d;
+  color: var(--bus-text);
 }
 
 .bus-received {

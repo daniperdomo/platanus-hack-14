@@ -62,9 +62,14 @@ export default function BusinessSection() {
               opcionales y el propósito de cada uno; el usuario aprueba desde su
               teléfono y tú recibes solo lo autorizado.
             </p>
-            <a href="/autobuses" className="btn btn--secondary">
-              Ver demo en vivo
-            </a>
+            <div className="hero__actions">
+              <a href="/empresas/solicitar-api" className="btn btn--primary">
+                Solicitar API
+              </a>
+              <a href="/autobuses" className="btn btn--secondary">
+                Ver demo en vivo
+              </a>
+            </div>
           </div>
           <pre className="code-block">
             <code>{snippet}</code>

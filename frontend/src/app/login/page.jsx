@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { collectSession, loginAccount } from "@/lib/api";
-import { startSession } from "@/lib/session";
+import { startGuestSession, startSession } from "@/lib/session";
 import { decryptJson, unwrapVaultKey } from "@/lib/vaultCrypto";
 
 export default function LoginPage() {
@@ -63,6 +63,11 @@ export default function LoginPage() {
     }
   }
 
+  function enterAsGuest() {
+    startGuestSession();
+    router.push("/dashboard");
+  }
+
   return (
     <main className="auth">
       <Link href="/" className="nav__brand auth__brand">
@@ -105,6 +110,14 @@ export default function LoginPage() {
           <p className="text-muted">
             ¿Primera vez? <Link href="/registrar">Crea tu ZeroID</Link>
           </p>
+          <div className="auth-divider">o</div>
+          <button
+            type="button"
+            className="btn btn--secondary auth-guest"
+            onClick={enterAsGuest}
+          >
+            Entrar como invitado
+          </button>
         </div>
       ) : (
         <div className="auth-card">
