@@ -1,4 +1,3 @@
-export const MIN_LONG_SIDE = 1200;
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 function loadImage(file) {
@@ -25,8 +24,5 @@ export async function validateDocumentImage(file) {
     throw new Error("La imagen pesa más de 10 MB.");
   }
 
-  const image = await loadImage(file);
-  if (Math.max(image.naturalWidth, image.naturalHeight) < MIN_LONG_SIDE) {
-    throw new Error("La imagen tiene muy poca resolución. Acerca más el documento.");
-  }
+  await loadImage(file);
 }

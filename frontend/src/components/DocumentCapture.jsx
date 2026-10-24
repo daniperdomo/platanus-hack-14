@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import CameraCapture from "./CameraCapture";
 import { checkDocument } from "@/lib/api";
 import { validateDocumentImage } from "@/lib/documentImage";
-import { fileToJpeg } from "@/lib/image";
+import { DOCUMENT_LONG_SIDE, fileToJpeg } from "@/lib/image";
 import { saveDocumentDraft } from "@/lib/vault";
 
 export default function DocumentCapture() {
@@ -24,7 +24,7 @@ export default function DocumentCapture() {
 
     try {
       await validateDocumentImage(file);
-      const jpeg = await fileToJpeg(file, "pasaporte.jpg");
+      const jpeg = await fileToJpeg(file, "pasaporte.jpg", DOCUMENT_LONG_SIDE);
       const result = await checkDocument(jpeg);
       await saveDocumentDraft({ file: jpeg });
       if (result.debug) {

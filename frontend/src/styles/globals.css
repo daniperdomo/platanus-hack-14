@@ -1346,6 +1346,279 @@ h1, h2, h3 {
   margin: auto 0;
 }
 
+/* ===== Registro y prueba de vida ===== */
+.flow {
+  min-height: 100vh;
+  background: var(--surface);
+  padding: 1.4rem 0 4rem;
+}
+
+.flow__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2.4rem;
+}
+
+.flow__back {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.flow__back:hover {
+  color: var(--text);
+}
+
+.register {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.85fr) 1.15fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+.register__intro {
+  position: sticky;
+  top: 1.5rem;
+}
+
+.register__panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.4rem;
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.camera,
+.preview,
+.liveness {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.camera__stage,
+.liveness__stage {
+  position: relative;
+  background: #0d0e11;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.camera__stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  min-height: 280px;
+}
+
+.camera__stage--pasaporte {
+  aspect-ratio: 1.42;
+}
+
+.liveness__stage {
+  aspect-ratio: 4 / 3;
+  max-height: 420px;
+}
+
+.camera__video,
+.liveness__video,
+.liveness__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera__video {
+  z-index: 1;
+  background: #0d0e11;
+}
+
+.liveness__video,
+.liveness__photo {
+  transform: scaleX(-1);
+}
+
+.camera__video[hidden],
+.liveness__video.is-hidden {
+  display: none;
+}
+
+.preview img {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  max-height: 420px;
+  object-fit: contain;
+  background: var(--surface);
+}
+
+.camera__placeholder,
+.liveness__placeholder {
+  position: relative;
+  z-index: 1;
+  color: var(--text-subtle);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.liveness__placeholder {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.camera__hint,
+.liveness__status,
+.liveness__meta {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.camera__hint {
+  text-align: center;
+}
+
+.camera__frame {
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+  inset: 12%;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.camera__actions,
+.liveness__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.liveness__oval {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  height: 78%;
+  aspect-ratio: 0.74;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px rgba(13, 14, 17, 0.45);
+  pointer-events: none;
+}
+
+.liveness__prompt {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.liveness__prompt strong {
+  font-size: 1.05rem;
+}
+
+.liveness__prompt span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.liveness__steps {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.liveness__step {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--surface);
+}
+
+.liveness__step.is-active {
+  border-color: var(--text);
+  color: var(--text);
+  background: #ffffff;
+}
+
+.liveness__step.is-done {
+  background: #0d0e11;
+  border-color: #0d0e11;
+  color: #ffffff;
+}
+
+.liveness__error {
+  font-size: 0.92rem;
+  color: #b42318;
+}
+
+.token-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+}
+
+.token-box code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.debug-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.debug-preview {
+  max-width: 480px;
+  border-radius: var(--radius-md);
+}
+
+.debug-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.debug-report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.debug-pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+}
+
 /* ===== Responsive adjustments ===== */
 @media (max-width: 960px) {
   .hero__grid {
@@ -1381,6 +1654,13 @@ h1, h2, h3 {
   .site-card__details {
     grid-template-columns: 1fr;
   }
+  .register {
+    grid-template-columns: 1fr;
+    gap: 1.6rem;
+  }
+  .register__intro {
+    position: static;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1403,7 +1683,8 @@ h1, h2, h3 {
   .cta-form button {
     width: 100%;
   }
-  .camera__actions .btn {
+  .camera__actions .btn,
+  .liveness__actions .btn {
     width: 100%;
   }
 }

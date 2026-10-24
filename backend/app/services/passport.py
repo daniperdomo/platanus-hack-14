@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 # ICAO 9303 codes that are not ISO 3166 alpha-3 (Germany, British nationality variants).
 ICAO_EXCEPTIONS = {"D": "DE", "GBD": "GB", "GBN": "GB", "GBO": "GB", "GBP": "GB", "GBS": "GB"}
 MRZ_LINE = re.compile(r"^[A-Z0-9<]{44}$")
+MRZ_LENGTH = 44
+FILLER_RUN = re.compile(r"<+")
 CHECK_WEIGHTS = (7, 3, 1)
 
 UNREADABLE_DETAIL = "No pudimos leer el pasaporte. Fotografía la página de datos completa, con buena luz."
@@ -174,16 +176,38 @@ def _nationality(icao_code: str) -> Optional[str]:
 
 
 def _normalize(line: str) -> str:
-    return re.sub(r"\s", "", line).upper()
+    return re.sub(r"\s", "", line).upper().replace("«", "<")
+
+
+def _fit_fillers(line: str) -> str:
+    """Models often miscount a run of '<'. Resize the longest run so the line has 44 chars.
+
+    Safe because line 2 is then checked digit by digit, and line 1 only feeds the name.
+    """
+    missing = MRZ_LENGTH - len(line)
+    runs = list(FILLER_RUN.finditer(line))
+    if missing == 0 or not runs:
+        return line
+    run = max(reversed(runs), key=lambda match: len(match.group()))
+    size = len(run.group()) + missing
+    if size < 1:
+        return line
+    return line[: run.start()] + "<" * size + line[run.end() :]
 
 
 def validate_reading(reading: GeminiReading) -> PassportData:
     if not reading.valid:
         raise ValueError(reading.error_message or UNREADABLE_DETAIL)
 
-    line1, line2 = _normalize(reading.mrz_line1), _normalize(reading.mrz_line2)
-    if not (MRZ_LINE.match(line1) and MRZ_LINE.match(line2)) or not line1.startswith("P"):
+    line1 = _fit_fillers(_normalize(reading.mrz_line1))
+    line2 = _fit_fillers(_normalize(reading.mrz_line2))
+    if not line1.startswith("P"):
         raise ValueError(NOT_A_PASSPORT_DETAIL)
+    if not (MRZ_LINE.match(line1) and MRZ_LINE.match(line2)):
+        logger.info(
+            "MRZ rejected: line lengths %d/%d", len(reading.mrz_line1), len(reading.mrz_line2)
+        )
+        raise ValueError(UNREADABLE_DETAIL)
     if not _checksums_ok(line2):
         raise ValueError(CHECKSUM_DETAIL)
 

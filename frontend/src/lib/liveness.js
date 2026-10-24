@@ -254,6 +254,12 @@ export async function createFaceLandmarker() {
 }
 
 export async function startCamera(video) {
+  if (!video) {
+    throw new Error("No se pudo abrir la vista de la cámara.");
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Este navegador no puede usar la cámara. Prueba con Chrome o Edge.");
+  }
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: {
@@ -262,9 +268,15 @@ export async function startCamera(video) {
       height: { ideal: 720 },
     },
   });
-  video.srcObject = stream;
-  await video.play();
-  return stream;
+  try {
+    video.srcObject = stream;
+    await video.play();
+    return stream;
+  } catch (err) {
+    stopStream(stream);
+    video.srcObject = null;
+    throw err;
+  }
 }
 
 export function stopStream(stream) {

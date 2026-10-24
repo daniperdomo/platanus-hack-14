@@ -3,7 +3,7 @@
 import { useState } from "react";
 import CameraCapture from "@/components/CameraCapture";
 import { debugDocument } from "@/lib/api";
-import { fileToJpeg } from "@/lib/image";
+import { DOCUMENT_LONG_SIDE, fileToJpeg } from "@/lib/image";
 
 function Fields({ fields }) {
   return (
@@ -64,7 +64,7 @@ export default function DebugPassportPage() {
     setReports(null);
     setBusy(true);
 
-    const processed = await fileToJpeg(file, "pasaporte.jpg").catch(() => file);
+    const processed = await fileToJpeg(file, "pasaporte.jpg", DOCUMENT_LONG_SIDE).catch(() => file);
     const [original, flow] = await Promise.allSettled([
       debugDocument(file),
       debugDocument(processed),
@@ -80,7 +80,7 @@ export default function DebugPassportPage() {
         <p>
           No valida ni registra nada. Muestra qué lee Gemini y si la MRZ pasa
           nuestra verificación de dígitos de control, para la imagen original
-          y para la versión reducida a 1280 px que usa el flujo real. Requiere{" "}
+          y para la versión reducida a 2000 px que usa el flujo real. Requiere{" "}
           <code>DEBUG_PASSPORT=true</code> en el backend.
         </p>
 
@@ -92,7 +92,7 @@ export default function DebugPassportPage() {
         {reports ? (
           <div className="debug-grid">
             <Report title="Imagen original" result={reports.original} />
-            <Report title="Como en el flujo real (1280 px)" result={reports.flow} />
+            <Report title="Como en el flujo real (2000 px)" result={reports.flow} />
           </div>
         ) : null}
       </div>

@@ -31,6 +31,7 @@ export default function LivenessCapture({ onCapture, onReset, autoStart = false 
   const capturingRef = useRef(false);
   const uiKeyRef = useRef("");
   const autoStartedRef = useRef(false);
+  const runRef = useRef(0);
 
   const [phase, setPhase] = useState("idle");
   const [error, setError] = useState("");
@@ -62,13 +63,15 @@ export default function LivenessCapture({ onCapture, onReset, autoStart = false 
     setPhoto(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl("");
+    setChallengeIds([]);
+    setTrackerState(null);
+    setPhase("requesting");
     onReset?.();
+    capturingRef.current = false;
+    const run = ++runRef.current;
 
     const sequence = pickChallengeSequence();
     trackerRef.current = new LivenessTracker(sequence);
-    setChallengeIds(sequence);
-    setTrackerState(trackerRef.current.snapshot());
-    capturingRef.current = false;
 
     try {
       setPhase("loading");
@@ -80,20 +83,30 @@ export default function LivenessCapture({ onCapture, onReset, autoStart = false 
         modelPromise,
         startCamera(video),
       ]);
+      if (run !== runRef.current) {
+        stopStream(stream);
+        if (video) video.srcObject = null;
+        return;
+      }
       landmarkerRef.current = landmarker;
       streamRef.current = stream;
 
       lastTsRef.current = -1;
       uiKeyRef.current = "";
+      setChallengeIds(sequence);
+      setTrackerState(trackerRef.current.snapshot());
       setPhase("running");
       loop();
     } catch (err) {
+      if (run !== runRef.current) return;
       stopStream(streamRef.current);
       streamRef.current = null;
+      if (videoRef.current) videoRef.current.srcObject = null;
+      setChallengeIds([]);
       setPhase("idle");
       setError(
         err?.name === "NotAllowedError"
-          ? "Necesitamos la cámara para la prueba de vida. El video no sale de tu dispositivo."
+          ? "El navegador bloqueó la cámara. Permite el acceso en el candado de la barra de dirección y vuelve a intentarlo."
           : err?.message ?? "No se pudo iniciar la cámara."
       );
     }
@@ -188,6 +201,8 @@ export default function LivenessCapture({ onCapture, onReset, autoStart = false 
             alt="Selfie validada por liveness"
             className="liveness__photo"
           />
+        ) : phase === "idle" || phase === "requesting" ? (
+          <p className="liveness__placeholder">Encuadra tu rostro en el óvalo</p>
         ) : (
           <div className="liveness__oval" aria-hidden="true" />
         )}
@@ -257,11 +272,14 @@ export default function LivenessCapture({ onCapture, onReset, autoStart = false 
             type="button"
             className="btn btn--secondary"
             onClick={() => {
+              runRef.current += 1;
               cancelAnimationFrame(rafRef.current);
               stopStream(streamRef.current);
               streamRef.current = null;
               if (videoRef.current) videoRef.current.srcObject = null;
               capturingRef.current = false;
+              setChallengeIds([]);
+              setTrackerState(null);
               setPhase("idle");
             }}
           >

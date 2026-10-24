@@ -94,7 +94,23 @@ def test_non_passport_mrz_is_rejected(gemini):
 
 def test_truncated_mrz_line_is_rejected(gemini):
     gemini.response = gemini_json(mrz_line2=LINE2[:40])
-    with pytest.raises(ValueError, match=NOT_A_PASSPORT_DETAIL):
+    with pytest.raises(ValueError, match=CHECKSUM_DETAIL):
+        read_passport(IMAGE)
+
+
+def test_miscounted_fillers_are_repaired(gemini):
+    gemini.response = gemini_json(
+        mrz_line1=LINE1[:-3],
+        mrz_line2=LINE2.replace("<<<<<<<<<<<<<<", "<<<<<<<<<<<<<<<<"),
+    )
+    data = read_passport(IMAGE)
+    assert data.document_id == "CHL-AB1234567"
+    assert data.holder_name == "JUAN PEREZ SOTO"
+
+
+def test_garbage_mrz_is_unreadable(gemini):
+    gemini.response = gemini_json(mrz_line2="AB12345671CHL")
+    with pytest.raises(ValueError, match=UNREADABLE_DETAIL):
         read_passport(IMAGE)
 
 
