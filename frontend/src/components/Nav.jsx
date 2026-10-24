@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
@@ -16,10 +17,10 @@ export default function Nav() {
   return (
     <header className={`nav${scrolled ? " is-scrolled" : ""}`} id="nav">
       <div className="container nav__inner">
-        <a href="#" className="nav__brand">
+        <Link href="/" className="nav__brand">
           <span className="logo-mark" />
           ZeroID
-        </a>
+        </Link>
         <nav className="nav__links">
           <a href="#personas">Personas</a>
           <a href="#empresas">Empresas</a>

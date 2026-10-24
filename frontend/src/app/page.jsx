@@ -4,6 +4,7 @@ import FeatureSection from "@/components/FeatureSection";
 import BusinessSection from "@/components/BusinessSection";
 import HowItWorks from "@/components/HowItWorks";
 import Comparison from "@/components/Comparison";
+import Solution from "@/components/Solution";
 import Waitlist from "@/components/Waitlist";
 import Footer from "@/components/Footer";
 
