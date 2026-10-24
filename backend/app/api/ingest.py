@@ -1,6 +1,8 @@
 import json
 from datetime import date
+from typing import Optional
 
+import psycopg
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
@@ -11,6 +13,8 @@ from app.services import face, hashing, ocr
 from app.services.images import decode_image
 
 router = APIRouter()
+
+DUPLICATE_DETAIL = "Esta persona ya tiene una credencial."
 
 
 class IngestResponse(BaseModel):
@@ -26,29 +30,38 @@ def _age(birth_date: date) -> int:
 
 
 @router.post("/ingest", response_model=IngestResponse)
-async def ingest(
+def ingest(
     selfie: UploadFile = File(...),
     document: UploadFile = File(...),
     device_public_jwk: str = Form(...),
+    nationality: Optional[str] = Form(None),
+    document_type: str = Form("cedula"),
 ):
+    if document_type != "cedula":
+        raise HTTPException(status_code=422, detail="Por ahora solo aceptamos cédula.")
+
     try:
         device_key = json.loads(device_public_jwk)
-        selfie_image = decode_image(await selfie.read())
-        document_image = decode_image(await document.read())
+        selfie_image = decode_image(selfie.file.read())
+        document_image = decode_image(document.file.read())
         document_data = ocr.read_document(document_image)
+        if not face.faces_match(selfie_image, document_image):
+            raise HTTPException(status_code=422, detail="La selfie no coincide con el carnet.")
+        embedding = face.embed_face(selfie_image)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error))
 
-    if not face.faces_match(selfie_image, document_image):
-        raise HTTPException(status_code=422, detail="La selfie no coincide con el carnet.")
+    if nationality and document_data.nationality and nationality.upper() != document_data.nationality:
+        raise HTTPException(status_code=422, detail="La nacionalidad no coincide con el documento.")
 
     document_hash = hashing.hash_document(document_data.rut)
-    embedding = face.embed_face(selfie_image)
-
     if database.document_exists(document_hash) or database.face_exists(embedding):
-        raise HTTPException(status_code=409, detail="Esta persona ya tiene una credencial.")
+        raise HTTPException(status_code=409, detail=DUPLICATE_DETAIL)
 
-    database.save_identity(document_hash, embedding)
+    try:
+        database.save_identity(document_hash, embedding)
+    except psycopg.errors.UniqueViolation:
+        raise HTTPException(status_code=409, detail=DUPLICATE_DETAIL)
 
     claims = {
         "persona_real_unica": True,
