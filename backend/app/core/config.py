@@ -1,0 +1,26 @@
+from typing import List
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    database_url: str = "postgresql://zeroid:zeroid@localhost:5432/zeroid"
+    jwt_secret: str = "dev-secret-change-me"
+    jwt_algorithm: str = "HS256"
+    credential_ttl_days: int = 365
+    hash_pepper: str = "dev-pepper-change-me"
+    cors_origins: str = "http://localhost:3000"
+
+    face_model: str = "Facenet512"
+    face_embedding_dim: int = 512
+    duplicate_face_distance: float = 0.3
+    adult_age: int = 18
+
+    @property
+    def cors_origin_list(self) -> List[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+
+settings = Settings()

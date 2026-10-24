@@ -1,0 +1,48 @@
+ZEROID / RETENCIÓN CERO — ESPECIFICACIÓN (para humanos e IAs)
+================================================================
+
+OBJETIVO
+Permitir que una persona demuestre a un sitio web atributos sobre sí misma
+(persona real y única, mayor de edad, nacionalidad) sin entregar su carnet,
+su foto ni su nombre.
+
+COMPONENTES
+1. Bóveda (frontend/, Next.js, App Router)
+   - Captura selfie y prueba de vida (liveness) en el navegador con MediaPipe.
+   - Captura foto del carnet.
+   - Genera un par de llaves ECDSA P-256 del dispositivo (Web Crypto API).
+   - Guarda la credencial (JWT) y la llave en LocalStorage. Nunca salen del
+     dispositivo salvo la llave pública.
+   - Muestra QR / flujo para presentar la credencial a un sitio externo.
+
+2. Oráculo (backend/, FastAPI)
+   - POST /ingest (multipart): selfie, document, device_public_jwk.
+       a. Decodifica imágenes en memoria (nunca se escriben a disco).
+       b. EasyOCR lee el carnet: RUT, fecha de nacimiento, nacionalidad.
+       c. DeepFace (Facenet512) compara selfie vs. foto del carnet.
+       d. Unicidad: HMAC-SHA256(RUT normalizado, HASH_PEPPER) + embedding
+          facial en pgvector (distancia coseno < 0.3 = duplicado).
+       e. Emite JWT firmado con claims:
+            persona_real_unica: bool
+            mayor_de_edad: bool
+            nacionalidad: "CL" | null
+          y cnf.jwk = llave pública del dispositivo.
+       f. Descarta imágenes y texto OCR. Solo persiste hash + embedding.
+   - POST /verify (JSON): { token, rules: [str] }
+       Devuelve solo las reglas pedidas: { valid, results: { regla: valor } }.
+       401 si el token es inválido/expiró, 400 si una regla no existe.
+   - GET /health
+
+DATOS PERSISTIDOS (tabla identities)
+   id, document_hash (único), face_embedding vector(512), created_at.
+   NO se guardan: imágenes, nombre, RUT en claro, fecha de nacimiento.
+
+VARIABLES DE ENTORNO
+   backend:  DATABASE_URL, JWT_SECRET, HASH_PEPPER, CORS_ORIGINS
+   frontend: NEXT_PUBLIC_API_URL
+
+PENDIENTE
+   - Componentes UI: Cámara, MediaPipe Canvas (liveness), QR.
+   - Prueba de posesión: el sitio envía un challenge y la bóveda lo firma con
+     la llave del dispositivo (lib/crypto.js signChallenge); el oráculo valida
+     contra cnf.jwk.
