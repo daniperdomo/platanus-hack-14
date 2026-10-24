@@ -15,17 +15,17 @@ export default function Nav() {
   return (
     <header className={`nav${scrolled ? " is-scrolled" : ""}`} id="nav">
       <div className="container nav__inner">
-        <a href="#" className="nav__brand">
+        <a href="/" className="nav__brand">
           <span className="logo-mark" />
           ZeroID
         </a>
         <nav className="nav__links">
-          <a href="#problema">Problema</a>
-          <a href="#solucion">Solución</a>
+          <a href="/#problema">Problema</a>
+          <a href="/#solucion">Solución</a>
         </nav>
         <div className="nav__actions">
-          <a href="#cta" className="btn btn--primary btn--sm">
-            Registrarme
+          <a href="/boveda" className="btn btn--primary btn--sm">
+            Emitir credencial
           </a>
         </div>
       </div>

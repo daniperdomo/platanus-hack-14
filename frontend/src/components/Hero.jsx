@@ -20,7 +20,7 @@ export default function Hero() {
             nombre.
           </p>
           <div className="hero__actions">
-            <a href="#cta" className="btn btn--primary">
+            <a href="/boveda" className="btn btn--primary">
               Quiero mi credencial
             </a>
             <a href="#solucion" className="btn btn--secondary">
