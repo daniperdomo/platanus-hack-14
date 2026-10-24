@@ -10,9 +10,20 @@ async function request(path, options) {
 }
 
 export function ingest({ selfie, document, devicePublicJwk }) {
+<<<<<<< Updated upstream
   const form = new FormData();
   form.append("selfie", selfie);
   form.append("document", document);
+=======
+  if (!selfie?.type?.startsWith("image/") || selfie.type.startsWith("video/")) {
+    return Promise.reject(
+      new Error("Solo se envía una foto validada. El video no sale del navegador.")
+    );
+  }
+  const form = new FormData();
+  form.append("selfie", selfie, selfie.name ?? "liveness-selfie.jpg");
+  form.append("document", document, document.name ?? "pasaporte.jpg");
+>>>>>>> Stashed changes
   form.append("device_public_jwk", JSON.stringify(devicePublicJwk));
   return request("/ingest", { method: "POST", body: form });
 }

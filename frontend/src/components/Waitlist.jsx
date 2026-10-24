@@ -31,6 +31,7 @@ export default function Waitlist() {
             Tus datos personales no son el precio de entrada.
           </h2>
           <p className="cta-subtitle">
+<<<<<<< Updated upstream
             Únete al acceso anticipado para probar la verificación privada de
             identidad.
           </p>
@@ -54,6 +55,10 @@ export default function Waitlist() {
             aria-live="polite"
           >
             {message}
+=======
+            Fotografía tu pasaporte. La imagen se lee en memoria y se
+            destruye: no se guarda en ningún servidor.
+>>>>>>> Stashed changes
           </p>
         </div>
       </div>

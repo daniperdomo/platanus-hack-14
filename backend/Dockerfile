@@ -5,13 +5,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
+    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+
+# pytesseract hands the MRZ crop to the tesseract binary through a temp file; keep it in RAM.
+ENV TMPDIR=/dev/shm
 
 COPY app ./app
 
