@@ -771,6 +771,22 @@ h1, h2, h3 {
   border-color: var(--text);
 }
 
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.pair-qr {
+  width: 240px;
+  height: 240px;
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 12px;
+}
+
 .auth-waiting {
   display: flex;
   align-items: center;

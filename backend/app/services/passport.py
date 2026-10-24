@@ -63,6 +63,8 @@ class PassportData:
     document_id: str
     birth_date: date
     nationality: Optional[str]
+    # Read from the MRZ so the device can encrypt it. Never persisted.
+    holder_name: str = ""
 
 
 @lru_cache
@@ -153,6 +155,16 @@ def _birth_date(yymmdd: str) -> date:
     return born if born <= date.today() else _mrz_date(yymmdd, 1900)
 
 
+def _holder_name(line1: str) -> str:
+    """TD3 line 1 stores SURNAME<<GIVEN<NAMES after the issuing state."""
+
+    def words(part: str) -> str:
+        return " ".join(piece for piece in part.split("<") if piece)
+
+    surname, _, given = line1[5:].rstrip("<").partition("<<")
+    return " ".join(part for part in (words(given), words(surname)) if part)
+
+
 def _nationality(icao_code: str) -> Optional[str]:
     code = _clean(icao_code)
     if code in ICAO_EXCEPTIONS:
@@ -179,6 +191,7 @@ def validate_reading(reading: GeminiReading) -> PassportData:
         document_id=f"{_clean(line1[2:5])}-{_clean(line2[0:9])}",
         birth_date=_birth_date(line2[13:19]),
         nationality=_nationality(line2[10:13]),
+        holder_name=_holder_name(line1),
     )
 
 

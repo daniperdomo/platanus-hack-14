@@ -17,7 +17,11 @@ export default function ActivityPage() {
       </header>
 
       <section className="panel">
-        <ActivityList items={activity} />
+        {activity.length > 0 ? (
+          <ActivityList items={activity} />
+        ) : (
+          <p className="text-muted">Cuando apruebes un sitio desde el teléfono, va a aparecer aquí.</p>
+        )}
       </section>
     </>
   );

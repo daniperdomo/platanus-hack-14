@@ -3,14 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/dashboard/Sidebar";
-import ConsentPrompt from "@/components/zeroid/ConsentPrompt";
-import usePendingRequest from "@/components/zeroid/usePendingRequest";
 import { endSession, loadSession } from "@/lib/session";
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const [session, setSession] = useState(null);
-  const [request, answer] = usePendingRequest();
 
   useEffect(() => {
     const current = loadSession();
@@ -30,15 +27,8 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="dashboard">
-      <Sidebar email={session.email} onLogout={logout} />
+      <Sidebar username={session.username} onLogout={logout} />
       <main className="dashboard__main">{children}</main>
-      {request && (
-        <div className="modal" role="dialog" aria-modal="true">
-          <div className="modal__card">
-            <ConsentPrompt key={request.id} request={request} onRespond={answer} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

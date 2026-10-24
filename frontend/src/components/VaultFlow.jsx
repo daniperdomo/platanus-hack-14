@@ -6,13 +6,14 @@ import LivenessCapture from "./LivenessCapture";
 import { ingest } from "@/lib/api";
 import { getOrCreateDeviceKey } from "@/lib/crypto";
 import { saveCredential } from "@/lib/storage";
+import AccountSetup from "./AccountSetup";
 import { clearDocumentDraft, loadDocumentDraft } from "@/lib/vault";
 
 export default function VaultFlow() {
   const [draft, setDraft] = useState(undefined);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const [claims, setClaims] = useState(null);
+  const [issued, setIssued] = useState(null);
 
   useEffect(() => {
     loadDocumentDraft()
@@ -33,7 +34,7 @@ export default function VaultFlow() {
       saveCredential(response.token);
       clearDocumentDraft();
       setDraft(null);
-      setClaims(response.claims);
+      setIssued({ token: response.token, profile: response.profile });
     } catch (err) {
       setError(err?.message ?? "No pudimos emitir tu credencial.");
     } finally {
@@ -41,28 +42,8 @@ export default function VaultFlow() {
     }
   }
 
-  if (claims) {
-    return (
-      <div className="liveness">
-        <div className="status-pill">
-          <span className="status-icon">✓</span>
-          <span>Credencial emitida · documento destruido</span>
-        </div>
-        <div className="token-box">
-          {Object.entries(claims).map(([name, value]) => (
-            <div className="token-row" key={name}>
-              <code>
-                {name}: {JSON.stringify(value)}
-              </code>
-            </div>
-          ))}
-        </div>
-        <p className="liveness__status">
-          Tu credencial vive solo en este navegador. El oráculo ya descartó tu
-          selfie y la foto de tu documento.
-        </p>
-      </div>
-    );
+  if (issued) {
+    return <AccountSetup token={issued.token} profile={issued.profile} />;
   }
 
   if (draft === undefined) {

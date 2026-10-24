@@ -1,336 +1,254 @@
-import { useRef, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { BlurView } from 'expo-blur';
-import BottomSheet, { BottomSheetView, type BottomSheetBackgroundProps } from '@gorhom/bottom-sheet';
+import { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { approveRequest, rejectRequest, type AuthField } from '../lib/api';
+import { confirmIdentity } from '../lib/confirm';
+import { signChallenge } from '../lib/crypto';
+import { getPending } from '../lib/pending';
+import { loadWallet } from '../lib/wallet';
 import { colors, hairline, radius, type, ui } from '../constants/theme';
 
-interface PermissionItem {
-  icon: keyof typeof Feather.glyphMap;
-  title: string;
-  description: string;
-  required?: boolean;
-}
-
-const MOCK_APP = {
-  name: 'Yummy',
-  description: 'Plataforma de delivery de comida',
-  clientId: 'client_id: yummy_prod_7f2c91',
+const LABELS: Record<string, string> = {
+  nombre: 'Nombre completo',
+  email: 'Correo electrónico',
+  telefono: 'Teléfono',
+  fecha_nacimiento: 'Fecha de nacimiento',
+  mayor_de_edad: 'Mayor de edad',
+  nacionalidad: 'Nacionalidad',
+  documento: 'Número de documento',
+  direccion: 'Dirección',
+  persona_real_unica: 'Persona real y única',
 };
 
-const PERMISSIONS: PermissionItem[] = [
-  {
-    icon: 'check',
-    title: 'Datos mínimos',
-    description: 'Solo se comparten tu nombre y email. No se venden datos a terceros.',
-  },
-  {
-    icon: 'bell',
-    title: 'Notificaciones',
-    description: 'La app podrá enviarte avisos sobre tus pedidos y promociones.',
-  },
-  {
-    icon: 'map-pin',
-    title: 'Ubicación',
-    description: 'Se usa para calcular tiempos de entrega y encontrar restaurantes cercanos.',
-    required: true,
-  },
-];
-
-function SheetBackground({ style }: BottomSheetBackgroundProps) {
-  return (
-    <View style={[style, styles.sheetBackground]}>
-      <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
-      <View style={styles.sheetTint} />
-    </View>
-  );
-}
+const ORACLE = new Set(['persona_real_unica', 'mayor_de_edad', 'nacionalidad']);
 
 export default function ConsentScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['75%'], []);
-  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const request = getPending();
+  const [step, setStep] = useState<'identity' | 'data'>('identity');
+  const [optional, setOptional] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const handleAuthorize = async () => {
-    setIsAuthorizing(true);
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  if (!request) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + 24 }]}>
+        <Text style={type.body}>No hay una solicitud pendiente.</Text>
+      </View>
+    );
+  }
 
-    // Simular autorización
-    setTimeout(() => {
-      bottomSheetRef.current?.close();
-      setTimeout(() => {
-        router.back();
-      }, 300);
-    }, 800);
-  };
+  const fields = request.fields ?? [];
+  const required = fields.filter((item) => item.required);
+  const choices = fields.filter((item) => !item.required);
 
-  const handleDecline = async () => {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    bottomSheetRef.current?.close();
-    setTimeout(() => {
+  async function approve(selected: AuthField[]) {
+    setBusy(true);
+    setError('');
+    try {
+      const confirmed = await confirmIdentity();
+      if (!confirmed) {
+        setError('Hace falta confirmar tu identidad para aprobar.');
+        return;
+      }
+      const wallet = await loadWallet();
+      if (!wallet) throw new Error('Este teléfono no tiene una credencial vinculada.');
+      const disclosures: Record<string, string | boolean> = {};
+      for (const item of selected) {
+        if (ORACLE.has(item.field)) {
+          disclosures[item.field] = true;
+          continue;
+        }
+        const value = wallet.vault[item.field];
+        if (!value) throw new Error(`Tu bóveda no tiene ${LABELS[item.field] ?? item.field}.`);
+        disclosures[item.field] = value;
+      }
+      await approveRequest(request!.request_id, {
+        token: wallet.token,
+        signature: signChallenge(wallet.privateJwk.d, request!.challenge),
+        disclosures,
+      });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-    }, 300);
-  };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No pudimos aprobar la solicitud.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function decline() {
+    setBusy(true);
+    setError('');
+    try {
+      const wallet = await loadWallet();
+      if (!wallet || !request) {
+        router.back();
+        return;
+      }
+      await rejectRequest(request.request_id, {
+        token: wallet.token,
+        signature: signChallenge(wallet.privateJwk.d, request.challenge),
+      });
+      router.back();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No pudimos rechazar la solicitud.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function continueFromIdentity() {
+    if (request!.kind === 'login' || fields.length === 0) {
+      approve([]);
+      return;
+    }
+    setStep('data');
+  }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.screen, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16 }]}>
       <StatusBar style="light" />
+      <TouchableOpacity onPress={() => router.back()} style={styles.close} activeOpacity={0.7}>
+        <Feather name="x" size={20} color={colors.text} />
+      </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={type.overline}>
+          {request.kind === 'login' ? 'Inicio de sesión' : 'Solicitud de acceso'}
+        </Text>
+        <Text style={[type.title, styles.title]}>{request.client_name}</Text>
+        {request.client_domain ? <Text style={type.body}>{request.client_domain}</Text> : null}
 
-      <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleDecline} />
-      </BlurView>
-
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={0}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        onClose={() => router.back()}
-        backgroundComponent={SheetBackground}
-        handleIndicatorStyle={styles.handleIndicator}
-      >
-        <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + 16 }]}>
-          <View style={styles.header}>
-            <View style={styles.monogram}>
-              <Text style={styles.monogramText}>{MOCK_APP.name.charAt(0)}</Text>
-            </View>
-            <View style={styles.headerCopy}>
-              <Text style={type.overline}>Solicitud de acceso</Text>
-              <Text style={[type.title, styles.appTitle]}>{MOCK_APP.name}</Text>
-              <Text style={type.body}>{MOCK_APP.description}</Text>
-            </View>
-          </View>
-
-          <View style={styles.requestRow}>
-            <Feather name="lock" size={14} color={colors.textMuted} />
-            <Text style={styles.requestText}>Quiere acceder a tu identidad ZeroID</Text>
-          </View>
-          <Text style={[type.mono, styles.clientId]}>{MOCK_APP.clientId}</Text>
-
-          <Text style={[type.overline, styles.sectionTitle]}>Resumen de privacidad</Text>
-          <View style={styles.permissionList}>
-            {PERMISSIONS.map((permission, index) => (
-              <View
-                key={permission.title}
-                style={[styles.permissionRow, index > 0 && styles.permissionRowDivider]}
-              >
-                <View style={styles.permissionIcon}>
-                  <Feather name={permission.icon} size={14} color={colors.text} />
-                </View>
-                <View style={styles.permissionCopy}>
-                  <View style={styles.permissionTitleRow}>
-                    <Text style={styles.permissionTitle}>{permission.title}</Text>
-                    {permission.required ? (
-                      <View style={styles.requiredBadge}>
-                        <Text style={styles.requiredBadgeText}>Requerido</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <Text style={styles.permissionDescription}>{permission.description}</Text>
-                </View>
-              </View>
+        {step === 'identity' ? (
+          <>
+            <Text style={[type.body, styles.lead]}>¿Eres tú quien intenta iniciar sesión?</Text>
+            <TouchableOpacity style={ui.primaryButton} onPress={continueFromIdentity} disabled={busy}>
+              <Text style={ui.primaryButtonText}>{busy ? 'Confirmando…' : 'Sí, soy yo'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ui.secondaryButton} onPress={decline} disabled={busy}>
+              <Text style={ui.secondaryButtonText}>No soy yo</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Text style={[type.body, styles.lead]}>
+              Revisa qué datos pide, para qué los usará y cuánto tiempo los guardará.
+            </Text>
+            {required.length > 0 && <Text style={type.overline}>Obligatorios</Text>}
+            {required.map((item) => (
+              <FieldRow key={item.field} item={item} checked locked />
             ))}
-          </View>
-
-          <View style={styles.actions}>
+            {choices.length > 0 && <Text style={[type.overline, styles.group]}>Opcionales</Text>}
+            {choices.map((item) => (
+              <FieldRow
+                key={item.field}
+                item={item}
+                checked={Boolean(optional[item.field])}
+                onToggle={() =>
+                  setOptional((current) => ({ ...current, [item.field]: !current[item.field] }))
+                }
+              />
+            ))}
             <TouchableOpacity
-              style={[ui.primaryButton, isAuthorizing && styles.buttonLoading]}
-              onPress={handleAuthorize}
-              activeOpacity={0.85}
-              disabled={isAuthorizing}
+              style={ui.primaryButton}
+              disabled={busy}
+              onPress={() =>
+                approve([...required, ...choices.filter((item) => optional[item.field])])
+              }
             >
-              {isAuthorizing ? <ActivityIndicator size="small" color={colors.inverse} /> : null}
-              <Text style={ui.primaryButtonText}>
-                {isAuthorizing ? 'Autorizando' : 'Autorizar acceso'}
-              </Text>
+              <Text style={ui.primaryButtonText}>{busy ? 'Firmando…' : 'Autorizar'}</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.declineButton}
-              onPress={handleDecline}
-              activeOpacity={0.6}
-              disabled={isAuthorizing}
-            >
-              <Text style={styles.declineButtonText}>Cancelar</Text>
+            <TouchableOpacity style={ui.secondaryButton} onPress={decline} disabled={busy}>
+              <Text style={ui.secondaryButtonText}>Cancelar</Text>
             </TouchableOpacity>
-
-            <View style={styles.footer}>
-              <Feather name="shield" size={12} color={colors.textSubtle} />
-              <Text style={styles.footerText}>
-                Puedes revocar este acceso en cualquier momento desde tu bóveda
-              </Text>
-            </View>
-          </View>
-        </BottomSheetView>
-      </BottomSheet>
+          </>
+        )}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+      </ScrollView>
     </View>
   );
 }
 
+function FieldRow({
+  item,
+  checked,
+  locked = false,
+  onToggle,
+}: {
+  item: AuthField;
+  checked: boolean;
+  locked?: boolean;
+  onToggle?: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.field}
+      onPress={locked ? undefined : onToggle}
+      activeOpacity={locked ? 1 : 0.7}
+    >
+      <Feather name={checked || locked ? 'check-square' : 'square'} size={18} color={colors.text} />
+      <View style={styles.fieldCopy}>
+        <Text style={styles.fieldTitle}>{LABELS[item.field] ?? item.field}</Text>
+        {item.purpose ? <Text style={styles.fieldMeta}>Para qué: {item.purpose}</Text> : null}
+        {item.retention ? <Text style={styles.fieldMeta}>Tiempo: {item.retention}</Text> : null}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: 'transparent',
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(13, 14, 17, 0.4)',
-  },
-  sheetBackground: {
-    overflow: 'hidden',
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: colors.border,
-  },
-  sheetTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(22, 24, 29, 0.72)',
-  },
-  handleIndicator: {
-    backgroundColor: colors.border,
-    width: 36,
-    height: 4,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  monogram: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: colors.background,
+    paddingHorizontal: 24,
+  },
+  close: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monogramText: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.text,
+  content: {
+    gap: 12,
+    paddingBottom: 24,
   },
-  headerCopy: {
-    flex: 1,
+  title: {
+    marginTop: 8,
   },
-  appTitle: {
-    marginTop: 4,
-    marginBottom: 2,
+  lead: {
+    marginVertical: 8,
   },
-  requestRow: {
+  group: {
+    marginTop: 8,
+  },
+  field: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 24,
-  },
-  requestText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  clientId: {
-    marginTop: 6,
-    marginLeft: 22,
-  },
-  sectionTitle: {
-    marginTop: 28,
-    marginBottom: 12,
-  },
-  permissionList: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: 20,
-  },
-  permissionRow: {
-    flexDirection: 'row',
-    gap: 14,
-    paddingVertical: 16,
-  },
-  permissionRowDivider: {
+    gap: 12,
+    paddingVertical: 12,
     borderTopWidth: hairline,
     borderTopColor: colors.border,
   },
-  permissionIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  permissionCopy: {
+  fieldCopy: {
     flex: 1,
     gap: 4,
   },
-  permissionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  permissionTitle: {
+  fieldTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.text,
   },
-  requiredBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  requiredBadgeText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: colors.textMuted,
-  },
-  permissionDescription: {
+  fieldMeta: {
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 18,
     color: colors.textMuted,
   },
-  actions: {
-    marginTop: 'auto',
-    paddingTop: 24,
-    gap: 4,
-  },
-  buttonLoading: {
-    opacity: 0.7,
-  },
-  declineButton: {
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  declineButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.textMuted,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  footerText: {
-    flexShrink: 1,
-    fontSize: 12,
-    color: colors.textSubtle,
+  error: {
+    color: colors.destructive,
+    fontSize: 14,
   },
 });

@@ -35,39 +35,58 @@ def sign_challenge(private, challenge):
 def store(monkeypatch, credential_id):
     state = {"requests": {}, "connections": [], "credentials": {credential_id}}
 
-    def create(client_name, rules, challenge, ttl_seconds):
+    def create(
+        client_name,
+        rules,
+        challenge,
+        ttl_seconds,
+        client_domain="",
+        fields=None,
+        kind="third_party",
+        credential_id=None,
+    ):
         request_id = str(uuid.uuid4())
         state["requests"][request_id] = {
             "client_name": client_name,
+            "client_domain": client_domain,
             "rules": list(rules),
+            "fields": fields
+            or [
+                {"field": rule, "purpose": "", "retention": "", "required": True}
+                for rule in rules
+            ],
             "challenge": challenge,
             "disclosed_claims": None,
-            "credential_id": None,
+            "credential_id": str(credential_id) if credential_id else None,
+            "kind": kind,
             "approved": False,
             "consumed": False,
             "expired": False,
+            "expires_in": ttl_seconds,
         }
         return request_id
 
     def get(request_id):
         return state["requests"].get(str(request_id))
 
-    def approve(request_id, owner_id, claims):
+    def approve(request_id, owner_id, claims, record_connection=True):
         row = state["requests"].get(str(request_id))
         if row is None or row["approved"] or row["expired"]:
             return False
         row["approved"] = True
         row["disclosed_claims"] = claims
         row["credential_id"] = str(owner_id)
-        state["connections"].append(
-            {
-                "id": str(uuid.uuid4()),
-                "credential_id": str(owner_id),
-                "client_name": row["client_name"],
-                "rules": list(row["rules"]),
-                "created_at": datetime.now(timezone.utc),
-            }
-        )
+        if record_connection:
+            state["connections"].append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "credential_id": str(owner_id),
+                    "client_name": row["client_name"],
+                    "client_domain": row.get("client_domain", ""),
+                    "rules": list(row["rules"]),
+                    "created_at": datetime.now(timezone.utc),
+                }
+            )
         return True
 
     def consume(request_id):
@@ -126,6 +145,54 @@ def test_third_party_receives_only_the_approved_rules(client, store, credential_
     [connection] = history.json()["connections"]
     assert connection["client_name"] == "Tienda"
     assert connection["rules"] == ["mayor_de_edad"]
+
+
+def test_personal_fields_come_from_the_device_and_oracle_claims_do_not(client, store, credential_id):
+    private, jwk = device_keypair()
+    token = credential(credential_id, jwk)
+    created = client.post(
+        "/auth/requests",
+        json={
+            "client_name": "Expreso Caribe",
+            "client_domain": "expresocaribe.com",
+            "fields": [
+                {
+                    "field": "nombre",
+                    "purpose": "Emitir el boleto",
+                    "retention": "1 año",
+                    "required": True,
+                },
+                {
+                    "field": "telefono",
+                    "purpose": "Avisos",
+                    "retention": "Hasta que lo quites",
+                    "required": False,
+                },
+                {"field": "mayor_de_edad", "purpose": "Descuento", "retention": "No se guarda", "required": True},
+            ],
+        },
+    )
+    assert created.status_code == 200
+    body = created.json()
+
+    view = client.get(f"/auth/requests/{body['request_id']}")
+    assert view.status_code == 200
+    assert view.json()["fields"][0]["purpose"] == "Emitir el boleto"
+    assert "challenge" in view.json()
+
+    lied = client.post(
+        f"/auth/requests/{body['request_id']}/approve",
+        json={
+            "token": token,
+            "signature": sign_challenge(private, body["challenge"]),
+            "disclosures": {"nombre": "Ana Pérez", "mayor_de_edad": False},
+        },
+    )
+    assert lied.status_code == 200
+    delivered = client.post(f"/auth/requests/{body['request_id']}/token").json()
+    assert delivered["claims"]["nombre"] == "Ana Pérez"
+    assert delivered["claims"]["mayor_de_edad"] is True
+    assert "telefono" not in delivered["claims"]
 
     assert client.post(f"/auth/requests/{body['request_id']}/token").status_code == 410
 

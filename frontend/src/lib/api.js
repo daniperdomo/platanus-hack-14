@@ -53,11 +53,28 @@ export function verify({ token, rules }) {
   });
 }
 
-export function createAuthRequest({ clientName, rules }) {
+export function createAuthRequest({ clientName, clientDomain = "", rules = [], fields = [] }) {
   return request("/auth/requests", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ client_name: clientName, rules }),
+    body: JSON.stringify({
+      client_name: clientName,
+      client_domain: clientDomain,
+      rules,
+      fields,
+    }),
+  });
+}
+
+export function getAuthRequest(requestId) {
+  return request(`/auth/requests/${requestId}`);
+}
+
+export function rejectAuthRequest({ requestId, token, signature }) {
+  return request(`/auth/requests/${requestId}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, signature }),
   });
 }
 
@@ -75,6 +92,40 @@ export function collectAuthToken(requestId) {
 
 export function listConnections(token) {
   return request("/auth/connections", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function registerAccount(body) {
+  return request("/auth/accounts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function loginAccount({ username, password }) {
+  return request("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export function collectSession(requestId) {
+  return request(`/auth/requests/${requestId}/session`, { method: "POST" });
+}
+
+export function createPairing(payload) {
+  return request("/pairings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payload }),
+  });
+}
+
+export function accountMe(token) {
+  return request("/auth/accounts/me", {
     headers: { Authorization: `Bearer ${token}` },
   });
 }

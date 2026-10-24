@@ -1,34 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { activity, connections } from "@/lib/mockData";
-import {
-  loadStoredActivity,
-  loadStoredConnections,
-  subscribe,
-} from "@/lib/zeroidConnect";
+import { listConnections } from "@/lib/api";
+import { loadSession } from "@/lib/session";
 
-function merge(stored, mock) {
-  const ids = new Set(stored.map((item) => item.id));
-  return [...stored, ...mock.filter((item) => !ids.has(item.id))];
-}
-
-function load() {
+function present(site) {
+  const when = site.created_at?.slice(0, 16).replace("T", " ") ?? "";
   return {
-    connections: merge(loadStoredConnections(), connections),
-    activity: merge(loadStoredActivity(), activity),
+    id: site.id,
+    name: site.client_name,
+    domain: site.client_domain || "",
+    status: "activa",
+    connectedAt: when.slice(0, 10),
+    lastAccess: when,
+    fields: site.rules,
+    purpose: "Autorizado desde tu teléfono.",
+    retention: "El sitio recibió solo lo que aprobaste en esa solicitud.",
   };
 }
 
 export default function useVault() {
-  const [vault, setVault] = useState({ connections, activity });
+  const [connections, setConnections] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setVault(load());
-    return subscribe((message) => {
-      if (message.type === "response") setVault(load());
-    });
+    const session = loadSession();
+    if (!session) return;
+    listConnections(session.token)
+      .then((body) => setConnections(body.connections.map(present)))
+      .catch((err) => setError(err?.message ?? "No pudimos leer tus conexiones."));
   }, []);
 
-  return vault;
+  const activity = connections.map((site) => ({
+    id: site.id,
+    date: site.lastAccess,
+    site: site.name,
+    type: "Conexión autorizada",
+    fields: site.fields,
+  }));
+
+  return { connections, activity, error };
 }

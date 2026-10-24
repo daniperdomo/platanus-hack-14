@@ -31,6 +31,9 @@ export default function SitesPage() {
       </header>
 
       <div className="sites">
+        {connections.length === 0 ? (
+          <p className="text-muted">Ningún sitio ha recibido datos todavía.</p>
+        ) : null}
         {connections.map((site) => (
           <article className="site-card" key={site.id}>
             <div className="site-card__head">

@@ -277,11 +277,11 @@
   cursor: pointer;
 }
 
-.bus-modal__links {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
+.bus-qr {
+  width: 220px;
+  height: 220px;
+  margin: 0 auto;
+  background: #ffffff;
 }
 
 .bus-divider {

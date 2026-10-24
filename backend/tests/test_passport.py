@@ -60,6 +60,7 @@ def test_valid_passport_is_read_from_the_verified_mrz(gemini):
     assert data.document_id == "CHL-AB1234567"
     assert data.birth_date == date(1990, 3, 15)
     assert data.nationality == "CL"
+    assert data.holder_name == "JUAN PEREZ SOTO"
 
 
 def test_request_sends_inline_jpeg_and_is_not_stored(gemini):

@@ -1,16 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import ActivityList from "@/components/dashboard/ActivityList";
 import useVault from "@/components/dashboard/useVault";
-import { profile, storedData } from "@/lib/mockData";
+import { loadSession, loadVault } from "@/lib/session";
 
 export default function DashboardHome() {
   const { activity, connections } = useVault();
+  const [username, setUsername] = useState("");
+  const [vaultCount, setVaultCount] = useState(0);
+
+  useEffect(() => {
+    setUsername(loadSession()?.username ?? "");
+    setVaultCount(Object.keys(loadVault() ?? {}).length);
+  }, []);
+
   const active = connections.filter((site) => site.status === "activa");
   const stats = [
     { label: "Sitios conectados", value: active.length },
-    { label: "Datos cifrados en tu bóveda", value: storedData.length },
+    { label: "Datos cifrados en tu bóveda", value: vaultCount },
     { label: "Solicitudes rechazadas", value: activity.filter((a) => a.type.includes("rechazada")).length },
   ];
 
@@ -18,10 +27,8 @@ export default function DashboardHome() {
     <>
       <header className="page-header">
         <span className="section-tag">Resumen</span>
-        <h1 className="page-header__title">Hola, {profile.name.split(" ")[0]}</h1>
-        <p className="text-muted">
-          Identidad verificada el {profile.verifiedAt} · <code>{profile.zeroId}</code>
-        </p>
+        <h1 className="page-header__title">Hola, {username}</h1>
+        <p className="text-muted">Tu bóveda está cifrada. Cada acceso se confirma en el teléfono.</p>
       </header>
 
       <div className="stats">

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.formparsers import MultiPartParser
 
-from app.api import auth, debug, document, ingest, verify
+from app.api import auth, debug, document, ingest, pairings, verify
 from app.core.config import settings
 from app.db.database import init_db
 from app.services import face
@@ -39,6 +39,7 @@ app.include_router(document.router)
 app.include_router(ingest.router)
 app.include_router(verify.router)
 app.include_router(auth.router)
+app.include_router(pairings.router)
 
 
 @app.get("/health")

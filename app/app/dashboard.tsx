@@ -1,68 +1,59 @@
+import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { listConnections } from '../lib/api';
+import { loadWallet } from '../lib/wallet';
 import { colors, hairline, radius, type, ui } from '../constants/theme';
 
-interface LoginSession {
-  id: string;
-  appName: string;
-  sessionHash: string;
-  lastActive: string;
-  device: string;
-  location: string;
-  permissions: string[];
-}
+const LABELS: Record<string, string> = {
+  nombre: 'Nombre',
+  email: 'Correo',
+  telefono: 'Teléfono',
+  fecha_nacimiento: 'Nacimiento',
+  mayor_de_edad: 'Mayor de edad',
+  nacionalidad: 'Nacionalidad',
+  documento: 'Documento',
+  direccion: 'Dirección',
+  persona_real_unica: 'Persona real',
+};
 
-const MOCK_SESSIONS: LoginSession[] = [
-  {
-    id: '1',
-    appName: 'Yummy',
-    sessionHash: 'zk_8f3a91…c21e',
-    lastActive: 'Hace 5 minutos',
-    device: 'iPhone 15 Pro',
-    location: 'Santiago, Chile',
-    permissions: ['Email', 'Nombre', 'Teléfono'],
-  },
-  {
-    id: '2',
-    appName: 'FitTracker',
-    sessionHash: 'zk_2b70de…94af',
-    lastActive: 'Hace 2 horas',
-    device: 'iPad Air',
-    location: 'Santiago, Chile',
-    permissions: ['Email', 'Nombre', 'Ubicación', 'Actividad física'],
-  },
-  {
-    id: '3',
-    appName: 'ShopNow',
-    sessionHash: 'zk_c4e15a…07b3',
-    lastActive: 'Hace 1 día',
-    device: 'MacBook Pro',
-    location: 'Valparaíso, Chile',
-    permissions: ['Email', 'Nombre', 'Dirección'],
-  },
-];
+type Connection = {
+  id: string;
+  client_name: string;
+  client_domain: string;
+  rules: string[];
+  created_at: string;
+};
 
 export default function DashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [error, setError] = useState('');
 
-  const handleRevokeAccess = async (sessionId: string, appName: string) => {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    // Aquí iría la lógica de revocación
-    console.log(`Revoking access for ${appName}`);
-  };
-
-  const handleNewLogin = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/consent');
-  };
+  useFocusEffect(
+    useCallback(() => {
+      let stop = false;
+      loadWallet().then(async (wallet) => {
+        if (!wallet || stop) return;
+        try {
+          const body = await listConnections(wallet.token);
+          if (!stop) setConnections(body.connections);
+        } catch (err) {
+          if (!stop) setError(err instanceof Error ? err.message : 'No pudimos leer tus accesos.');
+        }
+      });
+      return () => {
+        stop = true;
+      };
+    }, [])
+  );
 
   const handleScanQR = () => {
-    router.push('/');
+    router.push({ pathname: '/', params: { scan: 'approve' } });
   };
 
   return (
@@ -80,11 +71,11 @@ export default function DashboardScreen() {
 
         <View style={styles.stats}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{MOCK_SESSIONS.length}</Text>
+            <Text style={styles.statValue}>{connections.length}</Text>
             <Text style={styles.statLabel}>Accesos activos</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statValue}>{connections.length}</Text>
             <Text style={styles.statLabel}>Apps autorizadas</Text>
           </View>
         </View>
@@ -97,15 +88,19 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {MOCK_SESSIONS.map((session) => (
+        {error ? <Text style={styles.detailText}>{error}</Text> : null}
+        {connections.length === 0 && !error ? (
+          <Text style={styles.detailText}>Todavía no autorizas ningún sitio.</Text>
+        ) : null}
+        {connections.map((session) => (
           <View key={session.id} style={[ui.card, styles.sessionCard]}>
             <View style={styles.sessionHeader}>
               <View style={styles.monogram}>
-                <Text style={styles.monogramText}>{session.appName.charAt(0)}</Text>
+                <Text style={styles.monogramText}>{session.client_name.charAt(0)}</Text>
               </View>
               <View style={styles.appInfo}>
-                <Text style={type.heading}>{session.appName}</Text>
-                <Text style={type.caption}>{session.lastActive}</Text>
+                <Text style={type.heading}>{session.client_name}</Text>
+                <Text style={type.caption}>{session.created_at.slice(0, 16).replace('T', ' ')}</Text>
               </View>
               <View style={ui.badge}>
                 <Feather name="check" size={12} color={colors.text} />
@@ -113,57 +108,18 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            <View style={styles.details}>
-              <View style={styles.detailRow}>
-                <Feather name="smartphone" size={14} color={colors.textSubtle} />
-                <Text style={styles.detailText}>{session.device}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Feather name="map-pin" size={14} color={colors.textSubtle} />
-                <Text style={styles.detailText}>{session.location}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Feather name="hash" size={14} color={colors.textSubtle} />
-                <Text style={type.mono}>{session.sessionHash}</Text>
-              </View>
-            </View>
-
             <View style={styles.permissions}>
               <Text style={[type.overline, styles.permissionsLabel]}>Datos compartidos</Text>
               <View style={styles.permissionTags}>
-                {session.permissions.map((permission) => (
+                {session.rules.map((permission) => (
                   <View key={permission} style={styles.permissionTag}>
-                    <Text style={styles.permissionText}>{permission}</Text>
+                    <Text style={styles.permissionText}>{LABELS[permission] ?? permission}</Text>
                   </View>
                 ))}
               </View>
             </View>
-
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={[ui.secondaryButton, styles.actionButton, styles.revokeButton]}
-                onPress={() => handleRevokeAccess(session.id, session.appName)}
-                activeOpacity={0.7}
-              >
-                <Feather name="slash" size={14} color={colors.destructive} />
-                <Text style={[ui.secondaryButtonText, styles.revokeButtonText]}>Revocar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[ui.secondaryButton, styles.actionButton]} activeOpacity={0.7}>
-                <Text style={ui.secondaryButtonText}>Ver detalles</Text>
-                <Feather name="chevron-right" size={14} color={colors.text} />
-              </TouchableOpacity>
-            </View>
           </View>
         ))}
-
-        <TouchableOpacity
-          style={[ui.secondaryButton, styles.simulateButton]}
-          onPress={handleNewLogin}
-          activeOpacity={0.7}
-        >
-          <Feather name="plus" size={16} color={colors.text} />
-          <Text style={ui.secondaryButtonText}>Simular nuevo login</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );

@@ -62,6 +62,20 @@ def decode_credential(token: str) -> Dict[str, Any]:
     )
 
 
+def issue_session(credential_id: str, username: str) -> str:
+    """Browser session. It cannot sign challenges; the private key stays on the phone."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": ISSUER,
+        "sub": credential_id,
+        "iat": now,
+        "exp": now + timedelta(hours=12),
+        "typ": "session",
+        "username": username,
+    }
+    return jwt.encode(payload, _private_key(), algorithm=ALGORITHM)
+
+
 def issue_presentation(claims: Dict[str, Any], audience: str, ttl: timedelta) -> str:
     """Short-lived token for one third party. It carries only the claims just disclosed."""
     now = datetime.now(timezone.utc)

@@ -20,6 +20,8 @@ NO_FACE_DETAIL = "No se detectó ningún rostro en la selfie. Asegúrate de tene
 class IngestResponse(BaseModel):
     token: str
     claims: dict
+    # Returned once so the device can encrypt it. The oráculo does not store it.
+    profile: dict
 
 
 def _age(birth_date: date) -> int:
@@ -69,5 +71,11 @@ def ingest(
         "mayor_de_edad": _age(document_data.birth_date) >= settings.adult_age,
         "nacionalidad": document_data.nationality,
     }
+    profile = {
+        "nombre": document_data.holder_name,
+        "documento": document_data.document_id,
+        "fecha_nacimiento": document_data.birth_date.isoformat(),
+        "nacionalidad": document_data.nationality,
+    }
     token = issue_credential(claims, device_key, credential_id)
-    return IngestResponse(token=token, claims=claims)
+    return IngestResponse(token=token, claims=claims, profile=profile)

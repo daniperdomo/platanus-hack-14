@@ -3,7 +3,6 @@
 import Link from "next/link";
 import ConsentPrompt from "@/components/zeroid/ConsentPrompt";
 import usePendingRequest from "@/components/zeroid/usePendingRequest";
-import { profile } from "@/lib/mockData";
 
 export default function PhoneAppPage() {
   const [request, answer] = usePendingRequest();
@@ -23,10 +22,10 @@ export default function PhoneAppPage() {
           ) : (
             <div className="phone__idle">
               <span className="logo-mark" />
-              <h2>Hola, {profile.name.split(" ")[0]}</h2>
+              <h2>La confirmación vive en la app</h2>
               <p className="text-muted">
-                No tienes solicitudes pendientes. Cuando un sitio te pida iniciar
-                sesión con ZeroID, aparecerá aquí.
+                Escanea con la app ZeroID el código que muestra el sitio. Ahí
+                confirmas que eres tú y eliges qué datos compartir.
               </p>
             </div>
           )}

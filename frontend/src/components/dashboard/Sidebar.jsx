@@ -11,7 +11,7 @@ const LINKS = [
   { href: "/dashboard/dispositivos", label: "Dispositivos" },
 ];
 
-export default function Sidebar({ email, onLogout }) {
+export default function Sidebar({ username, onLogout }) {
   const pathname = usePathname();
 
   return (
@@ -34,7 +34,7 @@ export default function Sidebar({ email, onLogout }) {
       </nav>
 
       <div className="sidebar__footer">
-        <span className="sidebar__email">{email}</span>
+        <span className="sidebar__email">{username}</span>
         <button type="button" className="btn btn--secondary btn--sm" onClick={onLogout}>
           Cerrar sesión
         </button>

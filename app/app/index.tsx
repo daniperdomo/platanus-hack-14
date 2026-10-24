@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { claimPairing, fetchInbox, fetchRequest, markPaired } from '../lib/api';
+import { confirmIdentity } from '../lib/confirm';
+import { decryptJson, fromBase64Url } from '../lib/crypto';
+import { setPending } from '../lib/pending';
+import { loadWallet, saveWallet, type PrivateJwk, type Wallet } from '../lib/wallet';
 import { colors, hairline, radius, type, ui } from '../constants/theme';
 
 const { width, height } = Dimensions.get('window');
@@ -13,45 +18,140 @@ const FRAME_SIZE = width * 0.72;
 
 const FEATURES: { icon: keyof typeof Feather.glyphMap; title: string; description: string }[] = [
   {
-    icon: 'log-in',
-    title: 'Un solo login',
-    description: 'Accede a múltiples servicios con una credencial.',
+    icon: 'lock',
+    title: 'Bóveda cifrada',
+    description: 'Tus datos se descifran solo en este teléfono.',
   },
   {
     icon: 'shield',
-    title: 'Control de tus datos',
-    description: 'Decide qué compartes y con quién.',
+    title: 'Tú apruebas',
+    description: 'Cada inicio de sesión te pide confirmación.',
   },
   {
-    icon: 'slash',
-    title: 'Revocación inmediata',
-    description: 'Corta cualquier acceso en un toque.',
+    icon: 'check-square',
+    title: 'Datos justos',
+    description: 'Ves qué pide el sitio, para qué y por cuánto tiempo.',
   },
 ];
 
+type PairingPayload = {
+  token: string;
+  privateJwk: PrivateJwk;
+  vaultKey: string;
+  vaultCiphertext: string;
+};
+
 export default function OnboardingScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraMode, setCameraMode] = useState<null | 'pair' | 'approve'>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState('');
+  const scanning = useRef(false);
+  const prompted = useRef<string | null>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ scan?: string }>();
 
-  const handleCapture = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Aquí iría la lógica de captura del QR
-    // Por ahora simulamos éxito y navegamos al dashboard
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 500);
-  };
+  useEffect(() => {
+    loadWallet()
+      .then(setWallet)
+      .finally(() => setReady(true));
+  }, []);
 
-  const startCamera = async () => {
+  useEffect(() => {
+    if (params.scan === 'approve' && wallet) setCameraMode('approve');
+  }, [params.scan, wallet]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!wallet) return undefined;
+      let stop = false;
+      prompted.current = null;
+      const look = async () => {
+        try {
+          const inbox = await fetchInbox(wallet.token);
+          const prompt = inbox.requests.find((item) => item.kind === 'login');
+          if (!prompt || stop || prompted.current === prompt.request_id) return;
+          prompted.current = prompt.request_id;
+          setPending(prompt);
+          router.push('/consent');
+        } catch {
+          // The next poll retries. A closed app simply waits until it opens.
+        }
+      };
+      look();
+      const timer = setInterval(look, 4000);
+      return () => {
+        stop = true;
+        clearInterval(timer);
+      };
+    }, [router, wallet])
+  );
+
+  const startCamera = async (mode: 'pair' | 'approve') => {
     if (!permission?.granted) {
-      await requestPermission();
+      const next = await requestPermission();
+      if (!next.granted) return;
     }
-    setIsCameraActive(true);
+    scanning.current = false;
+    setError('');
+    setCameraMode(mode);
   };
 
-  if (!isCameraActive) {
+  const onBarcodeScanned = async ({ data }: { data: string }) => {
+    if (scanning.current) return;
+    scanning.current = true;
+    setError('');
+    try {
+      const url = new URL(data);
+      if (url.protocol !== 'zeroid:') throw new Error('Ese código no es de ZeroID.');
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (url.hostname === 'pair') {
+        await pairPhone(url);
+        return;
+      }
+      if (url.hostname === 'approve') {
+        const requestId = url.searchParams.get('request');
+        if (!requestId) throw new Error('El código no trae una solicitud.');
+        setPending(await fetchRequest(requestId));
+        setCameraMode(null);
+        router.push('/consent');
+        return;
+      }
+      throw new Error('Ese código no es de ZeroID.');
+    } catch (err) {
+      scanning.current = false;
+      setError(err instanceof Error ? err.message : 'No pudimos leer el código.');
+    }
+  };
+
+  const pairPhone = async (url: URL) => {
+    const id = url.searchParams.get('id');
+    const key = url.searchParams.get('key');
+    if (!id || !key) throw new Error('El código de vinculación está incompleto.');
+    const confirmed = await confirmIdentity();
+    if (!confirmed) throw new Error('Hace falta confirmar tu identidad para vincular.');
+    const claimed = await claimPairing(id);
+    const decoded = decryptJson<PairingPayload>(fromBase64Url(key), claimed.payload);
+    const vault = decryptJson<Record<string, string>>(
+      fromBase64Url(decoded.vaultKey),
+      decoded.vaultCiphertext
+    );
+    const next = {
+      token: decoded.token,
+      privateJwk: decoded.privateJwk,
+      vaultKey: decoded.vaultKey,
+      vault,
+    };
+    await saveWallet(next);
+    await markPaired(decoded.token).catch(() => undefined);
+    setWallet(next);
+    setCameraMode(null);
+    router.replace('/dashboard');
+  };
+
+  if (!cameraMode) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
         <StatusBar style="light" />
@@ -62,10 +162,14 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.hero}>
-          <Text style={type.overline}>Smart SSO · Gestor de privacidad</Text>
+          <Text style={type.overline}>
+            {wallet ? 'Teléfono vinculado' : 'Vincula tu ZeroID'}
+          </Text>
           <Text style={[type.display, styles.heroTitle]}>
-            Demuestra que eres real.{' '}
-            <Text style={styles.heroTitleMuted}>Sin revelar quién eres.</Text>
+            {wallet ? 'Listo para confirmar.' : 'Escanea el código del registro.'}{' '}
+            <Text style={styles.heroTitleMuted}>
+              {wallet ? 'Las solicitudes llegan aquí.' : 'La credencial queda cifrada en el teléfono.'}
+            </Text>
           </Text>
 
           <View style={styles.featureList}>
@@ -87,19 +191,29 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.cta}>
-          <TouchableOpacity style={ui.primaryButton} onPress={startCamera} activeOpacity={0.85}>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <TouchableOpacity
+            style={ui.primaryButton}
+            onPress={() => startCamera(wallet ? 'approve' : 'pair')}
+            activeOpacity={0.85}
+            disabled={!ready}
+          >
             <Feather name="maximize" size={18} color={colors.inverse} />
-            <Text style={ui.primaryButtonText}>Escanear QR de login</Text>
+            <Text style={ui.primaryButtonText}>
+              {wallet ? 'Escanear QR de un sitio' : 'Escanear QR de vinculación'}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.linkButton}
-            onPress={() => router.push('/dashboard')}
-            activeOpacity={0.6}
-          >
-            <Text style={styles.linkButtonText}>Ver mis accesos activos</Text>
-            <Feather name="chevron-right" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
+          {wallet ? (
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => router.push('/dashboard')}
+              activeOpacity={0.6}
+            >
+              <Text style={styles.linkButtonText}>Ver mis accesos activos</Text>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     );
@@ -110,13 +224,20 @@ export default function OnboardingScreen() {
       <StatusBar style="light" />
 
       {permission?.granted ? (
-        <CameraView style={StyleSheet.absoluteFill} facing="back">
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onBarcodeScanned={onBarcodeScanned}
+        >
           <View style={styles.cameraOverlay}>
             <View style={[styles.cameraHeader, { paddingTop: insets.top + 12 }]}>
-              <Text style={type.overline}>Escáner seguro</Text>
+              <Text style={type.overline}>
+                {cameraMode === 'pair' ? 'Vincular teléfono' : 'Aprobar un sitio'}
+              </Text>
               <TouchableOpacity
                 style={styles.iconButton}
-                onPress={() => setIsCameraActive(false)}
+                onPress={() => setCameraMode(null)}
                 activeOpacity={0.7}
               >
                 <Feather name="x" size={20} color={colors.text} />
@@ -131,19 +252,13 @@ export default function OnboardingScreen() {
             </View>
 
             <View style={styles.instructions}>
-              <Text style={styles.instructionsTitle}>Apunta al QR de login</Text>
+              <Text style={styles.instructionsTitle}>
+                {cameraMode === 'pair' ? 'Apunta al QR del registro' : 'Apunta al QR del sitio'}
+              </Text>
               <Text style={styles.instructionsSubtitle}>
-                Detectaremos el código automáticamente
+                {error || 'Lo leemos en cuanto esté dentro del marco'}
               </Text>
             </View>
-
-            <TouchableOpacity
-              style={[styles.captureButton, { bottom: insets.bottom + 40 }]}
-              onPress={handleCapture}
-              activeOpacity={0.85}
-            >
-              <View style={styles.captureButtonInner} />
-            </TouchableOpacity>
           </View>
         </CameraView>
       ) : (
@@ -165,7 +280,7 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.linkButton}
-            onPress={() => setIsCameraActive(false)}
+            onPress={() => setCameraMode(null)}
             activeOpacity={0.6}
           >
             <Text style={styles.linkButtonText}>Volver</Text>
@@ -267,6 +382,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.textMuted,
+  },
+  errorText: {
+    color: colors.destructive,
+    fontSize: 14,
+    textAlign: 'center',
   },
   cameraContainer: {
     flex: 1,
