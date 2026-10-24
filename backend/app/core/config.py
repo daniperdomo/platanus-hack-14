@@ -7,8 +7,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql://zeroid:zeroid@localhost:5432/zeroid"
-    jwt_secret: str = "dev-secret-change-me"
-    jwt_algorithm: str = "HS256"
+    jwt_private_key: str = ""
     credential_ttl_days: int = 365
     hash_pepper: str = "dev-pepper-change-me"
     cors_origins: str = "http://localhost:3000"

@@ -32,7 +32,7 @@ sequenceDiagram
 
     S->>B: Pide reglas (ej. mayor_de_edad)
     B->>O: POST /verify { token, rules }
-    O-->>S: { valid, results: { mayor_de_edad: true } }
+    O-->>S: { valid, claims: { mayor_de_edad: true } }
 ```
 
 ## Decisiones

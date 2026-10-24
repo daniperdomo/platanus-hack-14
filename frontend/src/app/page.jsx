@@ -1,6 +1,7 @@
 import Nav from "@/components/Nav";
 import Hero from "@/components/Hero";
 import FeatureSection from "@/components/FeatureSection";
+import Solution from "@/components/Solution";
 import Waitlist from "@/components/Waitlist";
 import Footer from "@/components/Footer";
 
@@ -22,21 +23,29 @@ const problems = [
   },
 ];
 
-const solutions = [
+const exposed = [
+  "Nombre completo",
+  "RUT",
+  "Foto del carnet",
+  "Selfie",
+  "Fecha de nacimiento",
+  "Dirección",
+];
+
+const revealed = ["persona_real_unica: true", "mayor_de_edad: true"];
+
+const pillars = [
   {
-    num: "01",
     title: "Validación sin retención",
-    body: "Tu cámara comprueba que eres real en tu navegador. Leemos tu carnet una sola vez y destruimos al instante todas las fotos y textos.",
+    body: "Leemos tu carnet una sola vez y destruimos al instante fotos y textos.",
   },
   {
-    num: "02",
     title: "Custodia en tu dispositivo",
-    body: "Tu credencial digital vive exclusivamente en tu navegador. Evitamos cuentas duplicadas o falsas sin saber quién eres.",
+    body: "Tu credencial vive solo en tu navegador.",
   },
   {
-    num: "03",
     title: "Respuesta en un clic",
-    body: "Para entrar a una web externa, tu dispositivo genera una prueba criptográfica que responde sí o no a la regla exigida.",
+    body: "El sitio recibe un sí o un no, nada más.",
   },
 ];
 
@@ -53,13 +62,13 @@ export default function Home() {
           description="Cada vez que te registras, te obligan a subir fotos de tu carnet, selfies e información sensible que la plataforma no necesita para operar."
           cards={problems}
         />
-        <FeatureSection
-          id="solucion"
+        <Solution
           tag="La solución"
           title="Verifica el atributo, nunca a la persona."
           description="Pruebas matemáticas que le demuestran al sitio web exactamente lo que necesita saber, sin que nadie guarde tus datos."
-          cards={solutions}
-          bordered
+          exposed={exposed}
+          revealed={revealed}
+          pillars={pillars}
         />
         <Waitlist />
       </main>
