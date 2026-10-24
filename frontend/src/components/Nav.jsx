@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -24,6 +25,9 @@ export default function Nav() {
           <a href="#solucion">Solución</a>
         </nav>
         <div className="nav__actions">
+          <Link href="/login" className="btn btn--secondary btn--sm">
+            Iniciar sesión
+          </Link>
           <a href="#cta" className="btn btn--primary btn--sm">
             Registrarme
           </a>
