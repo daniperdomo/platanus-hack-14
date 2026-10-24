@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import ActivityList from "@/components/dashboard/ActivityList";
-import { activity, connections, profile, storedData } from "@/lib/mockData";
+import useVault from "@/components/dashboard/useVault";
+import { profile, storedData } from "@/lib/mockData";
 
 export default function DashboardHome() {
+  const { activity, connections } = useVault();
   const active = connections.filter((site) => site.status === "activa");
   const stats = [
     { label: "Sitios conectados", value: active.length },

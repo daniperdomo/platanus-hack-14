@@ -14,9 +14,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata = {
-  title: "ZeroID — Demuestra que eres real sin revelar quién eres",
+  title: "ZeroID — Tu identidad verificada, bajo tu control",
   description:
-    "Regístrate e inicia sesión en sitios webs sin dar tus datos personales.",
+    "Verifícate una vez e inicia sesión en cualquier sitio aprobando desde tu teléfono qué datos compartes, para qué y por cuánto tiempo.",
 };
 
 export const viewport = {

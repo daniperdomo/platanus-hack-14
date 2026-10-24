@@ -21,15 +21,17 @@ export default function Nav() {
           ZeroID
         </a>
         <nav className="nav__links">
-          <a href="#problema">Problema</a>
-          <a href="#solucion">Solución</a>
+          <a href="#personas">Personas</a>
+          <a href="#empresas">Empresas</a>
+          <a href="#como-funciona">Cómo funciona</a>
+          <Link href="/autobuses">Demo</Link>
         </nav>
         <div className="nav__actions">
           <Link href="/login" className="btn btn--secondary btn--sm">
             Iniciar sesión
           </Link>
           <a href="#cta" className="btn btn--primary btn--sm">
-            Registrarme
+            Crear mi ZeroID
           </a>
         </div>
       </div>

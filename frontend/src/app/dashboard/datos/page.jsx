@@ -1,6 +1,10 @@
-import { DATA_FIELDS, connections, storedData } from "@/lib/mockData";
+"use client";
+
+import useVault from "@/components/dashboard/useVault";
+import { DATA_FIELDS, storedData } from "@/lib/mockData";
 
 export default function DataPage() {
+  const { connections } = useVault();
   const sharedWith = (field) =>
     connections.filter((site) => site.status === "activa" && site.fields.includes(field));
 

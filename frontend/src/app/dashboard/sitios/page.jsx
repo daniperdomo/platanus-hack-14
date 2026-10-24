@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import FieldTags from "@/components/dashboard/FieldTags";
-import { connections as initialConnections } from "@/lib/mockData";
+import useVault from "@/components/dashboard/useVault";
 
 export default function SitesPage() {
-  const [connections, setConnections] = useState(initialConnections);
+  const vault = useVault();
+  const [connections, setConnections] = useState(vault.connections);
+
+  useEffect(() => setConnections(vault.connections), [vault.connections]);
 
   function revoke(id) {
     setConnections((current) =>

@@ -1,7 +1,7 @@
-const claims = [
-  "persona_real_unica: true",
-  "mayor_de_edad: true",
-  'nacionalidad: "CL"',
+const requested = [
+  { label: "Nombre completo", purpose: "Emitir tu boleto", required: true },
+  { label: "Número de documento", purpose: "Validarte al abordar", required: true },
+  { label: "Teléfono", purpose: "Avisos de retrasos", required: false },
 ];
 
 export default function Hero() {
@@ -10,21 +10,20 @@ export default function Hero() {
       <div className="container hero__grid">
         <div className="hero__content">
           <h1 className="hero__title">
-            Demuestra que eres real.{" "}
-            <span className="text-muted">Sin dar tus datos personales.</span>
+            Tu identidad verificada.{" "}
+            <span className="text-muted">Bajo tu control.</span>
           </h1>
           <p className="hero__lead">
-            Regístrate e inicia sesión en sitios web demostrando que eres una
-            persona real, mayor de edad o residente. Las plataformas validan la
-            regla al instante; tú nunca entregas tu carnet, tu foto ni tu
-            nombre.
+            Verifícate una sola vez y entra a cualquier sitio con un clic.
+            Apruebas cada acceso desde tu teléfono y decides qué datos compartes,
+            para qué se usan y por cuánto tiempo.
           </p>
           <div className="hero__actions">
             <a href="#cta" className="btn btn--primary">
-              Quiero mi credencial
+              Crear mi ZeroID
             </a>
-            <a href="#solucion" className="btn btn--secondary">
-              Cómo funciona
+            <a href="#empresas" className="btn btn--secondary">
+              Soy empresa
             </a>
           </div>
         </div>
@@ -33,44 +32,32 @@ export default function Hero() {
           <div className="terminal-card">
             <div className="terminal-card__header">
               <span className="terminal-dot" />
-              <span className="terminal-title">solicitud_verificacion.zk</span>
+              <span className="terminal-title">App ZeroID · Solicitud de acceso</span>
             </div>
 
             <div className="terminal-card__body">
-              <div className="flow-step">
-                <span className="flow-step__dot" />
-                <span className="flow-step__line" />
-                <div className="flow-step__content">
-                  <span className="flow-label">Sitio web solicita regla</span>
-                  <code>GET /auth/verify?rule=humano_unico&amp;mayor_edad</code>
-                </div>
-              </div>
+              <p className="preview__title">
+                <strong>Expreso Caribe</strong> quiere que inicies sesión con
+                ZeroID
+              </p>
 
-              <div className="flow-step">
-                <span className="flow-step__dot" />
-                <span className="flow-step__line" />
-                <div className="flow-step__content">
-                  <span className="flow-label">
-                    Tu dispositivo responde sin exponer datos
-                  </span>
-                  <div className="token-box">
-                    {claims.map((claim) => (
-                      <div className="token-row" key={claim}>
-                        <code>{claim}</code>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <ul className="preview__list">
+                {requested.map((item) => (
+                  <li className="preview__item" key={item.label}>
+                    <div>
+                      <strong>{item.label}</strong>
+                      <span>{item.purpose}</span>
+                    </div>
+                    <span className={`badge${item.required ? "" : " badge--muted"}`}>
+                      {item.required ? "Obligatorio" : "Opcional"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
 
-              <div className="flow-step flow-step--success">
-                <span className="flow-step__dot" />
-                <div className="flow-step__content">
-                  <div className="status-pill">
-                    <span className="status-icon">✓</span>
-                    <span>Acceso concedido · 0 datos compartidos</span>
-                  </div>
-                </div>
+              <div className="status-pill">
+                <span className="status-icon">✓</span>
+                <span>Autorizado · solo 2 datos compartidos</span>
               </div>
             </div>
           </div>

@@ -1,7 +1,11 @@
+"use client";
+
 import ActivityList from "@/components/dashboard/ActivityList";
-import { activity } from "@/lib/mockData";
+import useVault from "@/components/dashboard/useVault";
 
 export default function ActivityPage() {
+  const { activity } = useVault();
+
   return (
     <>
       <header className="page-header">
