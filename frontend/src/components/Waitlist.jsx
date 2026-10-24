@@ -9,7 +9,7 @@ export default function Waitlist() {
             Tus datos personales no son el precio de entrada.
           </h2>
           <p className="cta-subtitle">
-            Fotografía tu cédula o pasaporte. La imagen se lee en memoria y se
+            Fotografía tu pasaporte. La imagen se lee en memoria y se
             destruye: no se guarda en ningún servidor.
           </p>
           <Link href="/registrar" className="btn btn--primary">

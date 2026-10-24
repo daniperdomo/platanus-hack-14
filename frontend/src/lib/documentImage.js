@@ -1,4 +1,4 @@
-export const MIN_LONG_SIDE = 800;
+export const MIN_LONG_SIDE = 1200;
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 function loadImage(file) {

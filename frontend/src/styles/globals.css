@@ -547,112 +547,6 @@ h1, h2, h3 {
   gap: 1.4rem;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  border: 0;
-}
-
-.field span,
-.field legend {
-  font-size: 0.76rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-subtle);
-}
-
-.field input,
-.field select {
-  width: 100%;
-  padding: 0.8rem 1.1rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-strong);
-  font-family: var(--font);
-  font-size: 0.95rem;
-  background: #ffffff;
-  color: var(--text);
-  outline: none;
-}
-
-.field input:focus,
-.field select:focus {
-  border-color: var(--text);
-}
-
-.combo {
-  position: relative;
-}
-
-.combo__list {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 0.4rem);
-  left: 0;
-  right: 0;
-  max-height: 16rem;
-  overflow: auto;
-  list-style: none;
-  background: #ffffff;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.08);
-}
-
-.combo__option {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.7rem 1rem;
-  border: 0;
-  background: transparent;
-  font-family: var(--font);
-  font-size: 0.92rem;
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-}
-
-.combo__option.is-active,
-.combo__option:hover {
-  background: var(--surface);
-}
-
-.combo__empty {
-  padding: 0.8rem 1rem;
-  color: var(--text-subtle);
-  font-size: 0.9rem;
-}
-
-.choice-row {
-  display: flex;
-  gap: 0.6rem;
-}
-
-.choice {
-  flex: 1;
-  min-width: 0;
-  padding: 0.7rem 1rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-strong);
-  background: #ffffff;
-  color: var(--text-muted);
-  font-family: var(--font);
-  font-size: 0.88rem;
-  font-weight: 600;
-  line-height: 1.25;
-  cursor: pointer;
-}
-
-.choice.is-active {
-  background: var(--text);
-  border-color: var(--text);
-  color: #ffffff;
-}
-
 .camera,
 .preview {
   display: flex;
@@ -669,10 +563,6 @@ h1, h2, h3 {
   min-height: 280px;
   display: grid;
   place-items: center;
-}
-
-.camera__stage--cedula {
-  aspect-ratio: 1.586;
 }
 
 .camera__stage--pasaporte {
@@ -706,6 +596,12 @@ h1, h2, h3 {
   font-size: 0.95rem;
   text-align: center;
   padding: 2rem;
+}
+
+.camera__hint {
+  color: var(--text-subtle);
+  font-size: 0.9rem;
+  text-align: center;
 }
 
 .camera__frame {

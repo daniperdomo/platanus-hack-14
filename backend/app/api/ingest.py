@@ -1,6 +1,5 @@
 import json
 from datetime import date
-from typing import Optional
 
 import psycopg
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -9,12 +8,12 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.core.security import issue_credential
 from app.db import database
-from app.services import face, hashing, ocr
+from app.services import face, hashing, passport
 from app.services.images import decode_image
 
 router = APIRouter()
 
-DUPLICATE_DETAIL = "Esta persona ya tiene una credencial."
+DUPLICATE_DETAIL = "Ya estás registrado: esta persona ya tiene una credencial."
 NO_FACE_DETAIL = "No se detectó ningún rostro en la selfie. Asegúrate de tener buena iluminación."
 
 
@@ -35,17 +34,13 @@ def ingest(
     selfie: UploadFile = File(...),
     document: UploadFile = File(...),
     device_public_jwk: str = Form(...),
-    nationality: Optional[str] = Form(None),
-    document_type: str = Form("cedula"),
 ):
-    if document_type != "cedula":
-        raise HTTPException(status_code=422, detail="Por ahora solo aceptamos cédula.")
-
     try:
         device_key = json.loads(device_public_jwk)
         selfie_image = decode_image(selfie.file.read())
-        document_image = decode_image(document.file.read())
-        document_data = ocr.read_document(document_image)
+        document_bytes = document.file.read()
+        document_image = decode_image(document_bytes)
+        document_data = passport.read_passport(document_bytes)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error))
 
@@ -53,13 +48,10 @@ def ingest(
     # processing img1_path") whenever it cannot find a face in either image.
     try:
         if not face.faces_match(selfie_image, document_image):
-            raise HTTPException(status_code=422, detail="La selfie no coincide con el carnet.")
+            raise HTTPException(status_code=422, detail="La selfie no coincide con la foto del pasaporte.")
         embedding = face.embed_face(selfie_image)
     except ValueError:
         raise HTTPException(status_code=422, detail=NO_FACE_DETAIL)
-
-    if nationality and document_data.nationality and nationality.upper() != document_data.nationality:
-        raise HTTPException(status_code=422, detail="La nacionalidad no coincide con el documento.")
 
     document_hash = hashing.hash_document(document_data.document_id)
     if database.document_exists(document_hash) or database.face_exists(embedding):

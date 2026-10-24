@@ -4,11 +4,11 @@ const KEYS = {
   draft: "zeroid.draft",
 };
 
-export async function saveDocumentDraft({ nationality, documentType, file }) {
+export async function saveDocumentDraft({ file }) {
   const dataUrl = await fileToDataUrl(file);
   window.sessionStorage.setItem(
     KEYS.draft,
-    JSON.stringify({ nationality, documentType, fileName: file.name, dataUrl })
+    JSON.stringify({ fileName: file.name, dataUrl })
   );
 }
 
@@ -17,8 +17,8 @@ export async function loadDocumentDraft() {
   const raw = window.sessionStorage.getItem(KEYS.draft);
   if (!raw) return null;
 
-  const { dataUrl, fileName, ...draft } = JSON.parse(raw);
-  return { ...draft, file: await dataUrlToFile(dataUrl, fileName) };
+  const { dataUrl, fileName } = JSON.parse(raw);
+  return { file: await dataUrlToFile(dataUrl, fileName) };
 }
 
 export function clearDocumentDraft() {

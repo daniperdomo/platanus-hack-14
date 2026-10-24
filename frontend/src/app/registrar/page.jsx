@@ -4,7 +4,7 @@ import DocumentCapture from "@/components/DocumentCapture";
 export const metadata = {
   title: "Registro — ZeroID",
   description:
-    "Fotografía tu cédula o pasaporte. ZeroID no se queda con la imagen.",
+    "Fotografía tu pasaporte. ZeroID no se queda con la imagen.",
 };
 
 export default function RegistrarPage() {

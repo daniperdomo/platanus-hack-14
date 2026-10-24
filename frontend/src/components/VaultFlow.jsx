@@ -29,8 +29,6 @@ export default function VaultFlow() {
         selfie,
         document: draft.file,
         devicePublicJwk: publicJwk,
-        nationality: draft.nationality,
-        documentType: draft.documentType,
       });
       saveCredential(response.token);
       clearDocumentDraft();

@@ -15,13 +15,7 @@ async function request(path, options) {
   return body;
 }
 
-export function ingest({
-  selfie,
-  document,
-  devicePublicJwk,
-  nationality,
-  documentType = "cedula",
-}) {
+export function ingest({ selfie, document, devicePublicJwk }) {
   if (!selfie?.type?.startsWith("image/") || selfie.type.startsWith("video/")) {
     return Promise.reject(
       new Error("Solo se envía una foto validada. El video no sale del navegador.")
@@ -29,10 +23,8 @@ export function ingest({
   }
   const form = new FormData();
   form.append("selfie", selfie, selfie.name ?? "liveness-selfie.jpg");
-  form.append("document", document, document.name ?? "documento.jpg");
+  form.append("document", document, document.name ?? "pasaporte.jpg");
   form.append("device_public_jwk", JSON.stringify(devicePublicJwk));
-  form.append("document_type", documentType);
-  if (nationality) form.append("nationality", nationality);
   return request("/ingest", { method: "POST", body: form });
 }
 

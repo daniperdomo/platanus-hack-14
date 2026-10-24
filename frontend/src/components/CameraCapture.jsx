@@ -6,7 +6,7 @@ async function blobToFile(blob, name) {
   return new File([blob], name, { type: blob.type || "image/jpeg" });
 }
 
-export default function CameraCapture({ documentType, documentName, onCapture }) {
+export default function CameraCapture({ onCapture }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileRef = useRef(null);
@@ -74,7 +74,7 @@ export default function CameraCapture({ documentType, documentName, onCapture })
       canvas.toBlob(resolve, "image/jpeg", 0.92)
     );
     stopCamera();
-    onCapture(await blobToFile(blob, `documento-${documentType}.jpg`));
+    onCapture(await blobToFile(blob, "pasaporte.jpg"));
   }
 
   function onFileChange(event) {
@@ -85,14 +85,9 @@ export default function CameraCapture({ documentType, documentName, onCapture })
     onCapture(file);
   }
 
-  const hint =
-    documentType === "pasaporte"
-      ? "Encuadra la página de datos del pasaporte"
-      : `Encuadra tu ${documentName}`;
-
   return (
     <div className="camera">
-      <div className={`camera__stage camera__stage--${documentType}`}>
+      <div className="camera__stage camera__stage--pasaporte">
         <video
           ref={videoRef}
           className="camera__video"
@@ -101,9 +96,15 @@ export default function CameraCapture({ documentType, documentName, onCapture })
           autoPlay
           hidden={!live}
         />
-        {live ? null : <p className="camera__placeholder">{hint}</p>}
+        {live ? null : (
+          <p className="camera__placeholder">Encuadra la página de datos del pasaporte</p>
+        )}
         <div className="camera__frame" aria-hidden="true" />
       </div>
+
+      <p className="camera__hint">
+        Asegúrate de que las dos líneas con &lt;&lt;&lt;&lt; inferiores sean legibles.
+      </p>
 
       {error ? (
         <p className="cta-status is-error" role="status">
