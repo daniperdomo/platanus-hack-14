@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
@@ -6,7 +6,8 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, fonts, hairline, radius, type, ui } from '../constants/theme';
+import ThemeSwitcher from '../components/ThemeSwitcher';
+import { type ThemeColors, fonts, radius, useTheme } from '../constants/theme';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 const INGEST_URL = `${API_URL}/ingest`;
@@ -87,6 +88,8 @@ export default function OnboardingScreen() {
   const cameraRef = useRef<CameraView>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors, type, ui, scheme, hairline } = useTheme();
+  const styles = useMemo(() => createStyles(colors, hairline), [colors, hairline]);
 
   const resetScan = useCallback(() => {
     setPassportUri(null);
@@ -155,11 +158,14 @@ export default function OnboardingScreen() {
   if (!isCameraActive) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
-        <StatusBar style="light" />
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
-        <View style={styles.brand}>
-          <View style={styles.logoMark} />
-          <Text style={styles.brandText}>ZeroID</Text>
+        <View style={styles.brandRow}>
+          <View style={styles.brand}>
+            <View style={styles.logoMark} />
+            <Text style={styles.brandText}>ZeroID</Text>
+          </View>
+          <ThemeSwitcher />
         </View>
 
         <View style={styles.hero}>
@@ -209,7 +215,7 @@ export default function OnboardingScreen() {
   if (step === 'PROCESSING') {
     return (
       <View style={styles.processing}>
-        <StatusBar style="light" />
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
         <Text style={styles.processingText}>[ ENCRIPTANDO PAYLOAD... ]</Text>
       </View>
     );
@@ -284,11 +290,17 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors, hairline: number) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: 24,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   brand: {
     flexDirection: 'row',
@@ -302,8 +314,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.text,
   },
   brandText: {
+    fontFamily: fonts.bold,
     fontSize: 17,
-    fontWeight: '700',
     letterSpacing: -0.3,
     color: colors.text,
   },
@@ -349,11 +361,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   featureTitle: {
+    fontFamily: fonts.semibold,
     fontSize: 15,
-    fontWeight: '600',
     color: colors.text,
   },
   featureDescription: {
+    fontFamily: fonts.regular,
     fontSize: 13,
     lineHeight: 18,
     color: colors.textMuted,
@@ -369,8 +382,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   linkButtonText: {
+    fontFamily: fonts.semibold,
     fontSize: 14,
-    fontWeight: '500',
     color: colors.textMuted,
   },
   cameraContainer: {
@@ -425,12 +438,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   instructionsTitle: {
+    fontFamily: fonts.semibold,
     fontSize: 17,
-    fontWeight: '600',
     letterSpacing: -0.2,
     color: colors.text,
   },
   instructionsSubtitle: {
+    fontFamily: fonts.regular,
     fontSize: 13,
     color: colors.textMuted,
     textAlign: 'center',
@@ -494,3 +508,4 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 });
+}

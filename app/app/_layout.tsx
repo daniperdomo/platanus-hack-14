@@ -1,11 +1,39 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
-import { colors } from '../constants/theme';
+import { fonts, useTheme } from '../constants/theme';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const { colors, scheme } = useTheme();
+  const [fontsLoaded, fontError] = useFonts({
+    [fonts.bold]: require('../assets/fonts/Geist-Bold.ttf'),
+    [fonts.semibold]: require('../assets/fonts/Geist-SemiBold.ttf'),
+    [fonts.regular]: require('../assets/fonts/Geist-Regular.ttf'),
+    [fonts.mono]: require('../assets/fonts/GeistMono-Regular.ttf'),
+  });
+
+  useEffect(() => {
+    if (fontError) {
+      console.warn('No se pudieron cargar las fuentes Geist:', fontError.message);
+    }
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <GestureHandlerRootView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerStyle: {
@@ -14,36 +42,34 @@ export default function RootLayout() {
           headerShadowVisible: false,
           headerTintColor: colors.text,
           headerTitleStyle: {
-            fontWeight: '600',
+            fontFamily: fonts.semibold,
           },
           contentStyle: {
             backgroundColor: colors.background,
           },
         }}
       >
-        <Stack.Screen 
-          name="index" 
-          options={{ 
+        <Stack.Screen
+          name="index"
+          options={{
             title: 'ZeroID',
-            headerShown: false 
-          }} 
+            headerShown: false,
+          }}
         />
-        <Stack.Screen 
-          name="dashboard" 
-          options={{ 
-            title: '',
-            headerShown: true,
-            headerBackButtonDisplayMode: 'minimal',
-          }} 
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
         />
-        <Stack.Screen 
-          name="consent" 
-          options={{ 
+        <Stack.Screen
+          name="consent"
+          options={{
             title: 'Autorización',
             presentation: 'transparentModal',
             headerShown: false,
-            animation: 'fade'
-          }} 
+            animation: 'fade',
+          }}
         />
       </Stack>
     </GestureHandlerRootView>
@@ -53,6 +79,5 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
 });

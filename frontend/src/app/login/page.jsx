@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startGuestSession, startSession } from "@/lib/session";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,10 +41,13 @@ export default function LoginPage() {
 
   return (
     <main className="auth">
-      <Link href="/" className="nav__brand auth__brand">
-        <span className="logo-mark" />
-        ZeroID
-      </Link>
+      <div className="auth__top">
+        <Link href="/" className="nav__brand auth__brand">
+          <span className="logo-mark" />
+          ZeroID
+        </Link>
+        <ThemeSwitcher />
+      </div>
 
       {step === "email" ? (
         <div className="auth-card">
