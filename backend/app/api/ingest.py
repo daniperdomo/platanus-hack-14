@@ -15,6 +15,7 @@ from app.services.images import decode_image
 router = APIRouter()
 
 DUPLICATE_DETAIL = "Esta persona ya tiene una credencial."
+NO_FACE_DETAIL = "No se detectó ningún rostro en la selfie. Asegúrate de tener buena iluminación."
 
 
 class IngestResponse(BaseModel):
@@ -45,16 +46,22 @@ def ingest(
         selfie_image = decode_image(selfie.file.read())
         document_image = decode_image(document.file.read())
         document_data = ocr.read_document(document_image)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+
+    # DeepFace raises ValueError ("Face could not be detected", "Exception while
+    # processing img1_path") whenever it cannot find a face in either image.
+    try:
         if not face.faces_match(selfie_image, document_image):
             raise HTTPException(status_code=422, detail="La selfie no coincide con el carnet.")
         embedding = face.embed_face(selfie_image)
-    except ValueError as error:
-        raise HTTPException(status_code=422, detail=str(error))
+    except ValueError:
+        raise HTTPException(status_code=422, detail=NO_FACE_DETAIL)
 
     if nationality and document_data.nationality and nationality.upper() != document_data.nationality:
         raise HTTPException(status_code=422, detail="La nacionalidad no coincide con el documento.")
 
-    document_hash = hashing.hash_document(document_data.rut)
+    document_hash = hashing.hash_document(document_data.document_id)
     if database.document_exists(document_hash) or database.face_exists(embedding):
         raise HTTPException(status_code=409, detail=DUPLICATE_DETAIL)
 

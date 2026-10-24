@@ -5,13 +5,14 @@ from datetime import date
 import psycopg
 import pytest
 
+from app.api.ingest import NO_FACE_DETAIL
 from app.core import security
 from app.db import database
 from app.services import face, ocr
 from app.services.ocr import DocumentData
 from tests.conftest import DEVICE_JWK
 
-ADULT = DocumentData(rut="12.345.678-5", birth_date=date(1990, 3, 15), nationality="CL")
+ADULT = DocumentData(document_id="123456785", birth_date=date(1990, 3, 15), nationality="CL")
 
 
 @pytest.fixture
@@ -86,7 +87,7 @@ def test_optional_fields_default_to_cedula(client, jpeg_bytes, pipeline):
 
 def test_minor_gets_mayor_de_edad_false(client, jpeg_bytes, pipeline):
     pipeline["document"] = DocumentData(
-        rut="12.345.678-5", birth_date=date(date.today().year - 10, 1, 1), nationality="CL"
+        document_id="123456785", birth_date=date(date.today().year - 10, 1, 1), nationality="CL"
     )
     assert post_ingest(client, jpeg_bytes).json()["claims"]["mayor_de_edad"] is False
 
@@ -136,9 +137,25 @@ def test_face_mismatch_is_422(client, jpeg_bytes, pipeline):
     assert "selfie" in response.json()["detail"].lower()
 
 
-def test_no_face_detected_is_422_not_500(client, jpeg_bytes, pipeline):
-    pipeline["faces_match"] = ValueError("Face could not be detected.")
-    assert post_ingest(client, jpeg_bytes).status_code == 422
+@pytest.mark.parametrize(
+    "deepface_error",
+    ["Face could not be detected in numpy array.", "Exception while processing img1_path"],
+)
+def test_no_face_detected_is_translated_422(client, jpeg_bytes, pipeline, deepface_error):
+    pipeline["faces_match"] = ValueError(deepface_error)
+    response = post_ingest(client, jpeg_bytes)
+    assert response.status_code == 422
+    assert response.json()["detail"] == NO_FACE_DETAIL
+
+
+def test_no_face_in_embedding_is_translated_422(client, jpeg_bytes, pipeline, monkeypatch):
+    def no_face(_selfie):
+        raise ValueError("Face could not be detected.")
+
+    monkeypatch.setattr(face, "embed_face", no_face)
+    response = post_ingest(client, jpeg_bytes)
+    assert response.status_code == 422
+    assert response.json()["detail"] == NO_FACE_DETAIL
 
 
 @pytest.mark.parametrize("duplicate", ["document_exists", "face_exists"])
