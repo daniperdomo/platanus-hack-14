@@ -21,8 +21,8 @@ export default function Nav() {
           ZeroID
         </Link>
         <nav className="nav__links">
-          <a href="#problema">Problema</a>
-          <a href="#solucion">Solución</a>
+          <a href="/#problema">Problema</a>
+          <a href="/#solucion">Solución</a>
         </nav>
         <div className="nav__actions">
           <Link href="/registrar" className="btn btn--primary btn--sm">
