@@ -2,7 +2,7 @@
 
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import LivenessCapture from "@/components/LivenessCapture";
+import VaultFlow from "@/components/VaultFlow";
 
 export default function BovedaPage() {
   return (
@@ -23,7 +23,7 @@ export default function BovedaPage() {
 
           <section className="vault__card">
             <h2>Liveness activo</h2>
-            <LivenessCapture />
+            <VaultFlow />
           </section>
         </div>
       </main>

@@ -1,24 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import CameraCapture from "./CameraCapture";
 import CountrySelect from "./CountrySelect";
-import { countryName, documentLabel } from "@/lib/countries";
+import { documentLabel } from "@/lib/countries";
+import { validateDocumentImage } from "@/lib/documentImage";
+import { fileToJpeg } from "@/lib/image";
 import { saveDocumentDraft } from "@/lib/vault";
 
 export default function DocumentCapture() {
+  const router = useRouter();
   const [nationality, setNationality] = useState("");
   const [documentType, setDocumentType] = useState("cedula");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState("");
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   function onCapture(nextFile) {
     if (preview) URL.revokeObjectURL(preview);
     setFile(nextFile);
     setPreview(URL.createObjectURL(nextFile));
-    setSaved(false);
     setError("");
   }
 
@@ -26,10 +29,9 @@ export default function DocumentCapture() {
     if (preview) URL.revokeObjectURL(preview);
     setFile(null);
     setPreview("");
-    setSaved(false);
   }
 
-  function confirm() {
+  async function confirm() {
     if (!nationality) {
       setError("Elige tu nacionalidad.");
       return;
@@ -39,9 +41,17 @@ export default function DocumentCapture() {
       return;
     }
 
-    saveDocumentDraft({ nationality, documentType, file });
-    setSaved(true);
+    setBusy(true);
     setError("");
+    try {
+      await validateDocumentImage(file);
+      const jpeg = await fileToJpeg(file, `documento-${documentType}.jpg`);
+      await saveDocumentDraft({ nationality, documentType, file: jpeg });
+      router.push("/boveda");
+    } catch (err) {
+      setError(err?.message ?? "No pudimos guardar el documento.");
+      setBusy(false);
+    }
   }
 
   return (
@@ -63,7 +73,6 @@ export default function DocumentCapture() {
             value={nationality}
             onChange={(code) => {
               setNationality(code);
-              setSaved(false);
               setError("");
             }}
           />
@@ -80,10 +89,7 @@ export default function DocumentCapture() {
                 key={type.id}
                 type="button"
                 className={`choice${documentType === type.id ? " is-active" : ""}`}
-                onClick={() => {
-                  setDocumentType(type.id);
-                  setSaved(false);
-                }}
+                onClick={() => setDocumentType(type.id)}
               >
                 {type.label}
               </button>
@@ -95,11 +101,21 @@ export default function DocumentCapture() {
           <div className="preview">
             <img src={preview} alt="Foto del documento capturada" />
             <div className="camera__actions">
-              <button type="button" className="btn btn--secondary" onClick={retake}>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={retake}
+                disabled={busy}
+              >
                 Volver a tomar
               </button>
-              <button type="button" className="btn btn--primary" onClick={confirm}>
-                Confirmar documento
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={confirm}
+                disabled={busy}
+              >
+                {busy ? "Guardando…" : "Continuar a la prueba de vida"}
               </button>
             </div>
           </div>
@@ -116,15 +132,6 @@ export default function DocumentCapture() {
             {error}
           </p>
         ) : null}
-
-        {saved ? (
-          <p className="register__done" role="status">
-            Documento listo: {countryName(nationality)} ·{" "}
-            {documentLabel(nationality, documentType)}. No se envió
-            a ningún servidor. La selfie de liveness es el siguiente paso.
-          </p>
-        ) : null}
-
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import { drawToJpeg } from "./image";
+
 const WASM_URL =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm";
 const MODEL_URL =
@@ -270,24 +272,10 @@ export function stopStream(stream) {
 }
 
 export function snapshotFromVideo(video) {
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth || 640;
-  canvas.height = video.videoHeight || 480;
-  const context = canvas.getContext("2d");
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("No se pudo capturar la foto."));
-          return;
-        }
-        resolve(
-          new File([blob], "liveness-selfie.jpg", { type: "image/jpeg" })
-        );
-      },
-      "image/jpeg",
-      0.92
-    );
-  });
+  return drawToJpeg(
+    video,
+    video.videoWidth || 640,
+    video.videoHeight || 480,
+    "liveness-selfie.jpg"
+  );
 }

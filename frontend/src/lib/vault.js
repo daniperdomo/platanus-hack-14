@@ -1,37 +1,27 @@
+import { dataUrlToFile, fileToDataUrl } from "./image";
+
 const KEYS = {
   draft: "zeroid.draft",
 };
 
-let documentFile = null;
-
-function readDraft() {
-  if (typeof window === "undefined") return null;
-  const raw = window.sessionStorage.getItem(KEYS.draft);
-  return raw ? JSON.parse(raw) : null;
-}
-
-export function saveDocumentDraft({ nationality, documentType, file }) {
-  documentFile = file;
+export async function saveDocumentDraft({ nationality, documentType, file }) {
+  const dataUrl = await fileToDataUrl(file);
   window.sessionStorage.setItem(
     KEYS.draft,
-    JSON.stringify({
-      nationality,
-      documentType,
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-    })
+    JSON.stringify({ nationality, documentType, fileName: file.name, dataUrl })
   );
 }
 
-export function loadDocumentDraft() {
-  const draft = readDraft();
-  if (!draft || !documentFile) return null;
-  return { ...draft, file: documentFile };
+export async function loadDocumentDraft() {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(KEYS.draft);
+  if (!raw) return null;
+
+  const { dataUrl, fileName, ...draft } = JSON.parse(raw);
+  return { ...draft, file: await dataUrlToFile(dataUrl, fileName) };
 }
 
 export function clearDocumentDraft() {
-  documentFile = null;
   if (typeof window !== "undefined") {
     window.sessionStorage.removeItem(KEYS.draft);
   }

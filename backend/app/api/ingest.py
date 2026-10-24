@@ -59,7 +59,7 @@ def ingest(
         raise HTTPException(status_code=409, detail=DUPLICATE_DETAIL)
 
     try:
-        database.save_identity(document_hash, embedding)
+        credential_id = database.save_identity(document_hash, embedding)
     except psycopg.errors.UniqueViolation:
         raise HTTPException(status_code=409, detail=DUPLICATE_DETAIL)
 
@@ -68,4 +68,5 @@ def ingest(
         "mayor_de_edad": _age(document_data.birth_date) >= settings.adult_age,
         "nacionalidad": document_data.nationality,
     }
-    return IngestResponse(token=issue_credential(claims, device_key), claims=claims)
+    token = issue_credential(claims, device_key, credential_id)
+    return IngestResponse(token=token, claims=claims)

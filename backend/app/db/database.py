@@ -1,3 +1,4 @@
+import uuid
 from contextlib import contextmanager
 from typing import Iterator, List
 
@@ -28,6 +29,13 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            ALTER TABLE identities
+            ADD COLUMN IF NOT EXISTS credential_id UUID NOT NULL UNIQUE
+            DEFAULT gen_random_uuid()
+            """
+        )
 
 
 def document_exists(document_hash: str) -> bool:
@@ -51,9 +59,22 @@ def face_exists(embedding: List[float]) -> bool:
     return row is not None
 
 
-def save_identity(document_hash: str, embedding: List[float]) -> None:
+def save_identity(document_hash: str, embedding: List[float]) -> str:
     with connect() as conn:
-        conn.execute(
-            "INSERT INTO identities (document_hash, face_embedding) VALUES (%s, %s)",
+        row = conn.execute(
+            """
+            INSERT INTO identities (document_hash, face_embedding)
+            VALUES (%s, %s)
+            RETURNING credential_id
+            """,
             (document_hash, np.array(embedding)),
-        )
+        ).fetchone()
+    return str(row[0])
+
+
+def credential_exists(credential_id: uuid.UUID) -> bool:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM identities WHERE credential_id = %s", (credential_id,)
+        ).fetchone()
+    return row is not None
