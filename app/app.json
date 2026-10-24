@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "ZeroID",
+    "slug": "zeroid-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "zeroid",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0B0E"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.zeroid.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Necesitamos acceso a la cámara para escanear códigos QR de login."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0B0E",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.zeroid.mobile",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Necesitamos acceso a la cámara para escanear códigos QR de login."
+        }
+      ],
+      "expo-router",
+      "expo-font"
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "447327ec-4155-4506-aa05-cf01"
+      }
+    }
+  }
+}
