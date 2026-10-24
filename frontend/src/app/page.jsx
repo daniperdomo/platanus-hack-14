@@ -1,51 +1,28 @@
 import Nav from "@/components/Nav";
 import Hero from "@/components/Hero";
 import FeatureSection from "@/components/FeatureSection";
+import BusinessSection from "@/components/BusinessSection";
+import HowItWorks from "@/components/HowItWorks";
+import Comparison from "@/components/Comparison";
 import Solution from "@/components/Solution";
 import Waitlist from "@/components/Waitlist";
 import Footer from "@/components/Footer";
 
-const problems = [
+const userBenefits = [
   {
     num: "01",
-    title: "Sobre-recolección abusiva",
-    body: "Para comprobar que no eres un bot o que tienes más de 18 años, entregas nombre completo, dirección, RUT y fotos de tu carnet.",
+    title: "Verifícate una sola vez",
+    body: "Olvídate de subir fotos de tu documento y selfies en cada sitio. Lo haces una vez con ZeroID y listo.",
   },
   {
     num: "02",
-    title: "Confianza a ciegas",
-    body: "Tus documentos se almacenan en servidores y proveedores externos cuya seguridad nunca puedes auditar ni controlar.",
+    title: "Tú apruebas cada acceso",
+    body: "Nadie entra con tu identidad sin que lo confirmes desde tu teléfono. Si no fuiste tú, lo bloqueas al instante.",
   },
   {
     num: "03",
-    title: "Riesgo permanente",
-    body: "Una contraseña hackeada se cambia en un segundo. Tus fotos de identidad y tu RUT quedan expuestos en internet para siempre.",
-  },
-];
-
-const exposed = [
-  "Nombre completo",
-  "RUT",
-  "Foto del carnet",
-  "Selfie",
-  "Fecha de nacimiento",
-  "Dirección",
-];
-
-const revealed = ["persona_real_unica: true", "mayor_de_edad: true"];
-
-const pillars = [
-  {
-    title: "Validación sin retención",
-    body: "Leemos tu carnet una sola vez y destruimos al instante fotos y textos.",
-  },
-  {
-    title: "Custodia en tu dispositivo",
-    body: "Tu credencial vive solo en tu navegador.",
-  },
-  {
-    title: "Respuesta en un clic",
-    body: "El sitio recibe un sí o un no, nada más.",
+    title: "Sabes qué hacen con tus datos",
+    body: "Cada sitio declara qué datos pide, para qué y por cuánto tiempo. Los opcionales los eliges tú, y revocas el acceso cuando quieras.",
   },
 ];
 
@@ -56,20 +33,15 @@ export default function Home() {
       <main>
         <Hero />
         <FeatureSection
-          id="problema"
-          tag="El problema actual"
-          title="Para entrar a un sitio, te exigen entregar tu vida privada."
-          description="Cada vez que te registras, te obligan a subir fotos de tu carnet, selfies e información sensible que la plataforma no necesita para operar."
-          cards={problems}
+          id="personas"
+          tag="Para personas"
+          title="Deja de entregar tu vida privada en cada registro."
+          description="Hoy cada sitio te pide tu documento, tus fotos y tus datos, y nunca sabes qué hace con ellos. Con ZeroID tienes el control."
+          cards={userBenefits}
         />
-        <Solution
-          tag="La solución"
-          title="Verifica el atributo, nunca a la persona."
-          description="Pruebas matemáticas que le demuestran al sitio web exactamente lo que necesita saber, sin que nadie guarde tus datos."
-          exposed={exposed}
-          revealed={revealed}
-          pillars={pillars}
-        />
+        <BusinessSection />
+        <HowItWorks />
+        <Comparison />
         <Waitlist />
       </main>
       <Footer />
