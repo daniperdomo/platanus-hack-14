@@ -52,3 +52,29 @@ export function verify({ token, rules }) {
     body: JSON.stringify({ token, rules }),
   });
 }
+
+export function createAuthRequest({ clientName, rules }) {
+  return request("/auth/requests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ client_name: clientName, rules }),
+  });
+}
+
+export function approveAuthRequest({ requestId, token, signature }) {
+  return request(`/auth/requests/${requestId}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, signature }),
+  });
+}
+
+export function collectAuthToken(requestId) {
+  return request(`/auth/requests/${requestId}/token`, { method: "POST" });
+}
+
+export function listConnections(token) {
+  return request("/auth/connections", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}

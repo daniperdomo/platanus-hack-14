@@ -31,7 +31,9 @@ def verify(request: VerifyRequest):
     except (jwt.InvalidTokenError, ValueError):
         raise HTTPException(status_code=401, detail=INVALID_DETAIL)
 
-    if not database.credential_exists(credential_id):
+    # A presentation is the short-lived token handed to one third party.
+    # It already contains only the claims that user agreed to disclose.
+    if payload.get("typ") != "presentation" and not database.credential_exists(credential_id):
         raise HTTPException(status_code=401, detail=INVALID_DETAIL)
 
     claims = payload["claims"]
