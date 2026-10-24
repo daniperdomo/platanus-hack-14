@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import FieldTags from "@/components/dashboard/FieldTags";
+import EmptyState from "@/components/dashboard/EmptyState";
 import useVault from "@/components/dashboard/useVault";
 
 export default function SitesPage() {
@@ -29,6 +30,15 @@ export default function SitesPage() {
           Cada sitio donde usaste ZeroID, qué datos recibe y para qué los usa.
         </p>
       </header>
+
+      {connections.length === 0 && (
+        <section className="panel">
+          <EmptyState
+            title="Aún no te conectas a ningún sitio"
+            body="Cuando uses “Continuar con ZeroID”, verás aquí qué datos recibe cada sitio y para qué los usa."
+          />
+        </section>
+      )}
 
       <div className="sites">
         {connections.map((site) => (

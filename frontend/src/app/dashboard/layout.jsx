@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/dashboard/Sidebar";
+import { SessionContext } from "@/components/dashboard/SessionContext";
 import ConsentPrompt from "@/components/zeroid/ConsentPrompt";
 import usePendingRequest from "@/components/zeroid/usePendingRequest";
 import { endSession, loadSession } from "@/lib/session";
@@ -29,16 +30,18 @@ export default function DashboardLayout({ children }) {
   if (!session) return null;
 
   return (
-    <div className="dashboard">
-      <Sidebar email={session.email} onLogout={logout} />
-      <main className="dashboard__main">{children}</main>
-      {request && (
-        <div className="modal" role="dialog" aria-modal="true">
-          <div className="modal__card">
-            <ConsentPrompt key={request.id} request={request} onRespond={answer} />
+    <SessionContext.Provider value={session}>
+      <div className="dashboard">
+        <Sidebar session={session} onLogout={logout} />
+        <main className="dashboard__main">{children}</main>
+        {request && !session.guest && (
+          <div className="modal" role="dialog" aria-modal="true">
+            <div className="modal__card">
+              <ConsentPrompt key={request.id} request={request} onRespond={answer} />
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </SessionContext.Provider>
   );
 }

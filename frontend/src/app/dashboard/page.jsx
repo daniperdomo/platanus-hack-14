@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import ActivityList from "@/components/dashboard/ActivityList";
+import EmptyState from "@/components/dashboard/EmptyState";
 import useVault from "@/components/dashboard/useVault";
-import { profile, storedData } from "@/lib/mockData";
 
 export default function DashboardHome() {
-  const { activity, connections } = useVault();
+  const { activity, connections, profile, storedData } = useVault();
   const active = connections.filter((site) => site.status === "activa");
   const stats = [
     { label: "Sitios conectados", value: active.length },
@@ -18,9 +18,17 @@ export default function DashboardHome() {
     <>
       <header className="page-header">
         <span className="section-tag">Resumen</span>
-        <h1 className="page-header__title">Hola, {profile.name.split(" ")[0]}</h1>
+        <h1 className="page-header__title">
+          Hola, {profile ? profile.name.split(" ")[0] : "invitado"}
+        </h1>
         <p className="text-muted">
-          Identidad verificada el {profile.verifiedAt} · <code>{profile.zeroId}</code>
+          {profile ? (
+            <>
+              Identidad verificada el {profile.verifiedAt} · <code>{profile.zeroId}</code>
+            </>
+          ) : (
+            "Identidad sin verificar"
+          )}
         </p>
       </header>
 
@@ -40,7 +48,14 @@ export default function DashboardHome() {
             Ver todo
           </Link>
         </div>
-        <ActivityList items={activity.slice(0, 4)} />
+        {activity.length > 0 ? (
+          <ActivityList items={activity.slice(0, 4)} />
+        ) : (
+          <EmptyState
+            title="Sin actividad todavía"
+            body="Cuando inicies sesión en sitios con ZeroID, verás aquí cada solicitud."
+          />
+        )}
       </section>
     </>
   );

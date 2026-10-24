@@ -1,6 +1,11 @@
-import { devices } from "@/lib/mockData";
+"use client";
+
+import EmptyState from "@/components/dashboard/EmptyState";
+import useVault from "@/components/dashboard/useVault";
 
 export default function DevicesPage() {
+  const { devices } = useVault();
+
   return (
     <>
       <header className="page-header">
@@ -12,19 +17,26 @@ export default function DevicesPage() {
       </header>
 
       <section className="panel">
-        <ul className="devices">
-          {devices.map((device) => (
-            <li className="devices__item" key={device.id}>
-              <div>
-                <strong>{device.name}</strong>
-                <span className="text-muted">{device.role}</span>
-              </div>
-              <span className={`badge${device.current ? "" : " badge--muted"}`}>
-                {device.current ? "Este dispositivo" : device.lastSeen}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {devices.length === 0 ? (
+          <EmptyState
+            title="Sin dispositivos vinculados"
+            body="Al verificarte, vinculas la app ZeroID de tu teléfono para aprobar cada inicio de sesión."
+          />
+        ) : (
+          <ul className="devices">
+            {devices.map((device) => (
+              <li className="devices__item" key={device.id}>
+                <div>
+                  <strong>{device.name}</strong>
+                  <span className="text-muted">{device.role}</span>
+                </div>
+                <span className={`badge${device.current ? "" : " badge--muted"}`}>
+                  {device.current ? "Este dispositivo" : device.lastSeen}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </>
   );

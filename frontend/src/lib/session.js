@@ -15,3 +15,9 @@ export function startSession(email) {
 export function endSession() {
   window.localStorage.removeItem(SESSION_KEY);
 }
+
+export function startGuestSession() {
+  const session = { guest: true, email: null, startedAt: new Date().toISOString() };
+  window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  return session;
+}

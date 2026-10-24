@@ -1,6 +1,7 @@
 "use client";
 
 import ActivityList from "@/components/dashboard/ActivityList";
+import EmptyState from "@/components/dashboard/EmptyState";
 import useVault from "@/components/dashboard/useVault";
 
 export default function ActivityPage() {
@@ -17,7 +18,14 @@ export default function ActivityPage() {
       </header>
 
       <section className="panel">
-        <ActivityList items={activity} />
+        {activity.length > 0 ? (
+          <ActivityList items={activity} />
+        ) : (
+          <EmptyState
+            title="Sin actividad todavía"
+            body="Aquí verás cada solicitud que apruebes o rechaces desde tu teléfono."
+          />
+        )}
       </section>
     </>
   );

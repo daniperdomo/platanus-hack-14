@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startSession } from "@/lib/session";
+import { startGuestSession, startSession } from "@/lib/session";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -25,6 +25,11 @@ export default function LoginPage() {
 
   function approve() {
     startSession(email.trim());
+    router.push("/dashboard");
+  }
+
+  function enterAsGuest() {
+    startGuestSession();
     router.push("/dashboard");
   }
 
@@ -63,6 +68,14 @@ export default function LoginPage() {
           <p className="cta-status is-error" role="status" aria-live="polite">
             {message}
           </p>
+          <div className="auth-divider">o</div>
+          <button
+            type="button"
+            className="btn btn--secondary auth-guest"
+            onClick={enterAsGuest}
+          >
+            Entrar como invitado
+          </button>
         </div>
       ) : (
         <div className="auth-waiting">
