@@ -1,5 +1,3 @@
-@import "tailwindcss";
-
 /* ===== Minimalist Design Tokens (Black & White Clean) ===== */
 :root {
   --bg: #ffffff;
@@ -87,7 +85,7 @@ h1, h2, h3 {
   border-color: #0d0e11;
 }
 
-.btn--primary:hover {
+.btn--primary:hover:not(:disabled) {
   background: #252830;
   border-color: #252830;
   transform: translateY(-1px);
@@ -99,9 +97,47 @@ h1, h2, h3 {
   border-color: var(--border-strong);
 }
 
-.btn--secondary:hover {
+.btn--secondary:hover:not(:disabled) {
   background: var(--surface);
   border-color: var(--text);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn--loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.btn--loading::after {
+  content: "";
+  position: absolute;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-right-color: transparent;
+  animation: btn-spin 0.7s linear infinite;
+}
+
+.btn--primary.btn--loading::after {
+  border-color: #ffffff;
+  border-right-color: transparent;
+}
+
+.btn--secondary.btn--loading::after {
+  border-color: var(--text);
+  border-right-color: transparent;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ===== Navigation Bar ===== */
@@ -109,11 +145,17 @@ h1, h2, h3 {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--bg);
+  border-bottom: 1px solid transparent;
+  padding: 0.9rem 0;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.nav.is-scrolled {
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  padding: 0.9rem 0;
+  border-bottom-color: rgba(13, 14, 17, 0.08);
 }
 
 .nav__inner {
@@ -339,7 +381,7 @@ h1, h2, h3 {
   font-size: 0.82rem;
   color: var(--text-subtle);
   margin-bottom: 1.25rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .feature-card h3 {
