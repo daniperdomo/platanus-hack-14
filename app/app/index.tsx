@@ -1,15 +1,39 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, hairline, radius, type, ui } from '../constants/theme';
+import { colors, fonts, hairline, radius, type, ui } from '../constants/theme';
 
-const { width, height } = Dimensions.get('window');
-const FRAME_SIZE = width * 0.72;
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+const INGEST_URL = `${API_URL}/ingest`;
+
+const DEFAULT_ERROR = 'No pudimos validar tu identidad. Intenta de nuevo.';
+const NETWORK_ERROR = 'No hay conexión con el servidor. Revisa tu red e intenta de nuevo.';
+
+type Step = 'SCAN_PASSPORT' | 'SCAN_FACE' | 'PROCESSING';
+
+const { width } = Dimensions.get('window');
+const PASSPORT_FRAME_WIDTH = width * 0.86;
+const PASSPORT_FRAME_HEIGHT = PASSPORT_FRAME_WIDTH / 1.42;
+const FACE_FRAME_SIZE = width * 0.68;
+const FRAME_BORDER = 'rgba(255, 255, 255, 0.2)';
+
+const SCAN_COPY: Record<Exclude<Step, 'PROCESSING'>, { overline: string; title: string; subtitle: string }> = {
+  SCAN_PASSPORT: {
+    overline: 'Paso 1 de 2 · Pasaporte',
+    title: 'Encuadra la página de datos',
+    subtitle: 'Las dos líneas inferiores (MRZ) deben verse nítidas',
+  },
+  SCAN_FACE: {
+    overline: 'Paso 2 de 2 · Rostro',
+    title: 'Centra tu rostro en el círculo',
+    subtitle: 'Buena luz, sin lentes ni gorra',
+  },
+};
 
 const FEATURES: { icon: keyof typeof Feather.glyphMap; title: string; description: string }[] = [
   {
@@ -29,26 +53,103 @@ const FEATURES: { icon: keyof typeof Feather.glyphMap; title: string; descriptio
   },
 ];
 
+function toUploadFile(uri: string) {
+  return { uri, name: 'image.jpg', type: 'image/jpeg' } as unknown as Blob;
+}
+
+async function submitVerification(passportUri: string, faceUri: string, signal: AbortSignal) {
+  const body = new FormData();
+  body.append('document', toUploadFile(passportUri));
+  body.append('selfie', toUploadFile(faceUri));
+
+  let response: Response;
+  try {
+    response = await fetch(INGEST_URL, { method: 'POST', body, signal });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new Error(NETWORK_ERROR);
+  }
+
+  if (response.status !== 200) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(typeof payload?.detail === 'string' ? payload.detail : DEFAULT_ERROR);
+  }
+}
+
 export default function OnboardingScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [step, setStep] = useState<Step>('SCAN_PASSPORT');
+  const [passportUri, setPassportUri] = useState<string | null>(null);
+  const [faceUri, setFaceUri] = useState<string | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const cameraRef = useRef<CameraView>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const resetScan = useCallback(() => {
+    setPassportUri(null);
+    setFaceUri(null);
+    setIsCameraReady(false);
+    setStep('SCAN_PASSPORT');
+  }, []);
+
+  useEffect(() => {
+    if (step !== 'PROCESSING' || !passportUri || !faceUri) return;
+
+    const controller = new AbortController();
+    submitVerification(passportUri, faceUri, controller.signal)
+      .then(async () => {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace('/dashboard');
+      })
+      .catch(async (error: unknown) => {
+        if (controller.signal.aborted) return;
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('Verificación fallida', error instanceof Error ? error.message : DEFAULT_ERROR);
+        resetScan();
+      });
+
+    return () => controller.abort();
+  }, [step, passportUri, faceUri, router, resetScan]);
+
   const handleCapture = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Aquí iría la lógica de captura del QR
-    // Por ahora simulamos éxito y navegamos al dashboard
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 500);
+    if (!cameraRef.current || !isCameraReady || isCapturing) return;
+
+    setIsCapturing(true);
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const photo = await cameraRef.current.takePictureAsync({ base64: false, quality: 0.7 });
+      if (!photo?.uri) throw new Error('Sin imagen');
+
+      if (step === 'SCAN_PASSPORT') {
+        setPassportUri(photo.uri);
+        setIsCameraReady(false);
+        setStep('SCAN_FACE');
+      } else if (step === 'SCAN_FACE') {
+        setFaceUri(photo.uri);
+        setStep('PROCESSING');
+      }
+    } catch {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Captura fallida', 'No pudimos tomar la foto. Intenta de nuevo.');
+    } finally {
+      setIsCapturing(false);
+    }
   };
 
   const startCamera = async () => {
     if (!permission?.granted) {
       await requestPermission();
     }
+    resetScan();
     setIsCameraActive(true);
+  };
+
+  const closeCamera = () => {
+    resetScan();
+    setIsCameraActive(false);
   };
 
   if (!isCameraActive) {
@@ -88,8 +189,8 @@ export default function OnboardingScreen() {
 
         <View style={styles.cta}>
           <TouchableOpacity style={ui.primaryButton} onPress={startCamera} activeOpacity={0.85}>
-            <Feather name="maximize" size={18} color={colors.inverse} />
-            <Text style={ui.primaryButtonText}>Escanear QR de login</Text>
+            <Feather name="camera" size={18} color={colors.inverse} />
+            <Text style={ui.primaryButtonText}>Verificar identidad</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -105,42 +206,53 @@ export default function OnboardingScreen() {
     );
   }
 
+  if (step === 'PROCESSING') {
+    return (
+      <View style={styles.processing}>
+        <StatusBar style="light" />
+        <Text style={styles.processingText}>[ ENCRIPTANDO PAYLOAD... ]</Text>
+      </View>
+    );
+  }
+
+  const facing = step === 'SCAN_FACE' ? 'front' : 'back';
+  const copy = SCAN_COPY[step];
+
   return (
     <View style={styles.cameraContainer}>
       <StatusBar style="light" />
 
       {permission?.granted ? (
-        <CameraView style={StyleSheet.absoluteFill} facing="back">
-          <View style={styles.cameraOverlay}>
-            <View style={[styles.cameraHeader, { paddingTop: insets.top + 12 }]}>
-              <Text style={type.overline}>Escáner seguro</Text>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => setIsCameraActive(false)}
-                activeOpacity={0.7}
-              >
+        <CameraView
+          key={facing}
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing={facing}
+          onCameraReady={() => setIsCameraReady(true)}
+        >
+          <View style={[styles.cameraOverlay, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40 }]}>
+            <View style={styles.cameraHeader}>
+              <Text style={type.overline}>{copy.overline}</Text>
+              <TouchableOpacity style={styles.iconButton} onPress={closeCamera} activeOpacity={0.7}>
                 <Feather name="x" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.scanFrame}>
-              <View style={[styles.corner, styles.cornerTopLeft]} />
-              <View style={[styles.corner, styles.cornerTopRight]} />
-              <View style={[styles.corner, styles.cornerBottomLeft]} />
-              <View style={[styles.corner, styles.cornerBottomRight]} />
-            </View>
-
-            <View style={styles.instructions}>
-              <Text style={styles.instructionsTitle}>Apunta al QR de login</Text>
-              <Text style={styles.instructionsSubtitle}>
-                Detectaremos el código automáticamente
-              </Text>
+            <View style={styles.scanArea}>
+              <View style={step === 'SCAN_FACE' ? styles.faceFrame : styles.passportFrame} />
+              <View style={styles.instructions}>
+                <Text style={styles.instructionsTitle}>{copy.title}</Text>
+                <Text style={styles.instructionsSubtitle}>{copy.subtitle}</Text>
+              </View>
             </View>
 
             <TouchableOpacity
-              style={[styles.captureButton, { bottom: insets.bottom + 40 }]}
+              style={[styles.captureButton, (!isCameraReady || isCapturing) && styles.captureButtonDisabled]}
               onPress={handleCapture}
+              disabled={!isCameraReady || isCapturing}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={step === 'SCAN_FACE' ? 'Tomar selfie' : 'Fotografiar pasaporte'}
             >
               <View style={styles.captureButtonInner} />
             </TouchableOpacity>
@@ -153,8 +265,8 @@ export default function OnboardingScreen() {
           </View>
           <Text style={[type.title, styles.permissionTitle]}>Acceso a la cámara</Text>
           <Text style={[type.body, styles.permissionText]}>
-            Necesitamos la cámara para escanear códigos QR de login. Las imágenes nunca salen de tu
-            dispositivo.
+            Necesitamos la cámara para fotografiar tu pasaporte y tomar una selfie. Las fotos solo se
+            usan para validar tu identidad.
           </Text>
           <TouchableOpacity
             style={[ui.primaryButton, styles.permissionButton]}
@@ -163,11 +275,7 @@ export default function OnboardingScreen() {
           >
             <Text style={ui.primaryButtonText}>Permitir cámara</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.linkButton}
-            onPress={() => setIsCameraActive(false)}
-            activeOpacity={0.6}
-          >
+          <TouchableOpacity style={styles.linkButton} onPress={closeCamera} activeOpacity={0.6}>
             <Text style={styles.linkButtonText}>Volver</Text>
           </TouchableOpacity>
         </View>
@@ -175,9 +283,6 @@ export default function OnboardingScreen() {
     </View>
   );
 }
-
-const CORNER = 28;
-const CORNER_WIDTH = 2;
 
 const styles = StyleSheet.create({
   container: {
@@ -274,9 +379,11 @@ const styles = StyleSheet.create({
   },
   cameraOverlay: {
     flex: 1,
+    alignItems: 'center',
     backgroundColor: 'rgba(13, 14, 17, 0.45)',
   },
   cameraHeader: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -286,58 +393,34 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.pill,
-    borderWidth: 1,
+    borderWidth: hairline,
     borderColor: colors.border,
     backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scanFrame: {
-    position: 'absolute',
-    top: height * 0.24,
-    left: (width - FRAME_SIZE) / 2,
-    width: FRAME_SIZE,
-    height: FRAME_SIZE,
+  scanArea: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 32,
   },
-  corner: {
-    position: 'absolute',
-    width: CORNER,
-    height: CORNER,
-    borderColor: colors.text,
+  passportFrame: {
+    width: PASSPORT_FRAME_WIDTH,
+    height: PASSPORT_FRAME_HEIGHT,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    borderColor: FRAME_BORDER,
   },
-  cornerTopLeft: {
-    top: 0,
-    left: 0,
-    borderTopWidth: CORNER_WIDTH,
-    borderLeftWidth: CORNER_WIDTH,
-    borderTopLeftRadius: radius.md,
-  },
-  cornerTopRight: {
-    top: 0,
-    right: 0,
-    borderTopWidth: CORNER_WIDTH,
-    borderRightWidth: CORNER_WIDTH,
-    borderTopRightRadius: radius.md,
-  },
-  cornerBottomLeft: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: CORNER_WIDTH,
-    borderLeftWidth: CORNER_WIDTH,
-    borderBottomLeftRadius: radius.md,
-  },
-  cornerBottomRight: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: CORNER_WIDTH,
-    borderRightWidth: CORNER_WIDTH,
-    borderBottomRightRadius: radius.md,
+  faceFrame: {
+    width: FACE_FRAME_SIZE,
+    height: FACE_FRAME_SIZE,
+    borderRadius: FACE_FRAME_SIZE / 2,
+    borderWidth: hairline,
+    borderColor: FRAME_BORDER,
   },
   instructions: {
-    position: 'absolute',
-    top: height * 0.24 + FRAME_SIZE + 32,
-    left: 24,
-    right: 24,
+    paddingHorizontal: 24,
     alignItems: 'center',
     gap: 6,
   },
@@ -350,23 +433,40 @@ const styles = StyleSheet.create({
   instructionsSubtitle: {
     fontSize: 13,
     color: colors.textMuted,
+    textAlign: 'center',
   },
   captureButton: {
-    position: 'absolute',
-    left: width / 2 - 36,
     width: 72,
     height: 72,
     borderRadius: 36,
     borderWidth: 2,
     borderColor: colors.text,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  captureButtonDisabled: {
+    opacity: 0.4,
   },
   captureButtonInner: {
     width: 58,
     height: 58,
     borderRadius: 29,
     backgroundColor: colors.text,
+  },
+  processing: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  processingText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1,
+    color: colors.textMuted,
   },
   permission: {
     flex: 1,

@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   sheetTint: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(22, 24, 29, 0.72)',
   },
   handleIndicator: {
