@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql://zeroid:zeroid@localhost:5432/zeroid"
+    # Direct (non-pooler) Neon endpoint: schema DDL must not go through PgBouncer.
+    database_url_unpooled: str = ""
     jwt_private_key: str = ""
     credential_ttl_days: int = 365
     hash_pepper: str = DEFAULT_HASH_PEPPER
@@ -26,6 +28,10 @@ class Settings(BaseSettings):
 
     # Echoes the data read from the MRZ back to the client. Local debugging only, never in production.
     debug_passport: bool = False
+
+    @property
+    def migration_database_url(self) -> str:
+        return self.database_url_unpooled or self.database_url
 
     @property
     def cors_origin_list(self) -> List[str]:

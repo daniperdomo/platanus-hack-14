@@ -18,7 +18,7 @@ def connect() -> Iterator[psycopg.Connection]:
 
 
 def init_db() -> None:
-    with psycopg.connect(settings.database_url, autocommit=True) as conn:
+    with psycopg.connect(settings.migration_database_url, autocommit=True) as conn:
         conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         conn.execute(
             f"""

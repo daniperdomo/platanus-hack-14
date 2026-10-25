@@ -22,6 +22,7 @@ services:
         required: false
     environment:
       DATABASE_URL: postgresql://zeroid:zeroid@db:5432/zeroid
+      DATABASE_URL_UNPOOLED: postgresql://zeroid:zeroid@db:5432/zeroid
     ports:
       - "8000:8000"
     depends_on:
