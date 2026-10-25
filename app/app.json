@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "ZeroID",
-    "slug": "zeroid-mobile",
+    "slug": "platanus-hack-14",
+    "owner": "jesusarl.dev",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -65,7 +66,7 @@
         }
       },
       "eas": {
-        "projectId": "447327ec-4155-4506-aa05-cf01"
+        "projectId": "4a62a5b0-487d-4737-8fb5-1c6e64302f4f"
       }
     }
   }
