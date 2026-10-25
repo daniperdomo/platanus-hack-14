@@ -7,7 +7,7 @@ Cómo está publicado ZeroID y cómo subir cambios a producción.
 | Parte | Servicio | Cómo se actualiza |
 |---|---|---|
 | Web (`frontend/`) | Vercel, conectado al repo espejo de GitHub | Automático con cada `git push` a `main` |
-| Demo Expreso Caribe (`expreso-caribe/`) | Vercel, otro proyecto sobre el mismo repo | Automático con cada `git push` a `main` |
+| Demo Expreso Caribe | Vercel, desde su propio repo (no está en este) | Automático con cada `git push` a ese repo |
 | Backend (`backend/`) | DigitalOcean App Platform, desde una imagen Docker | Manual: construir y subir la imagen |
 | Base de datos | Neon (Postgres 16 con pgvector) | Las tablas se crean o actualizan solas al arrancar el backend |
 | App (`app/`) | Expo Go apuntando al backend de producción | Recargar Expo |
@@ -158,7 +158,7 @@ Para pasar el PEM a una sola línea y copiarlo al portapapeles:
 
 Después de cambiarlas, haz **Redeploy**.
 
-### Demo Expreso Caribe (Vercel → proyecto de `expreso-caribe` → Settings → Environment Variables)
+### Demo Expreso Caribe (Vercel → proyecto de la demo → Settings → Environment Variables)
 
 | Variable | Descripción |
 |---|---|
@@ -193,9 +193,9 @@ Remove-Item Env:DATABASE_URL, Env:DATABASE_URL_UNPOOLED, Env:HASH_PEPPER
 
 El origen debe ser exactamente el dominio de la demo, sin `/` al final: la ventana de ZeroID rechaza clientes que la abren desde un origen no registrado.
 
-El script escribe el ID y el secreto en `expreso-caribe/.env.local`. Cópialos a las variables `NEXT_PUBLIC_ZEROID_CLIENT_ID` y `ZEROID_CLIENT_SECRET` del proyecto de la demo en Vercel, y haz **Redeploy**.
+El script escribe el ID y el secreto en el `.env.local` de la demo, que por defecto está en `../expreso-caribe/` (junto a este repo); usa `--env-file` si la tienes en otro lugar. Cópialos a las variables `NEXT_PUBLIC_ZEROID_CLIENT_ID` y `ZEROID_CLIENT_SECRET` del proyecto de la demo en Vercel, y haz **Redeploy**.
 
-Esto sobrescribe los valores locales de `expreso-caribe/.env.local`. Para volver a usar la demo en local, ejecuta `python -m scripts.demo_client` otra vez sin las variables de entorno.
+Esto sobrescribe los valores locales de ese `.env.local`. Para volver a usar la demo en local, ejecuta `python -m scripts.demo_client` otra vez sin las variables de entorno.
 
 ### Vaciar la base de producción
 

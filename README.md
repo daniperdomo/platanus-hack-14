@@ -16,7 +16,6 @@ ZeroID verifica atributos, no personas. Lee tu pasaporte y tu rostro una sola ve
 | Carpeta | Qué es | Stack |
 |---|---|---|
 | `frontend/` | Web: landing, registro, panel del usuario y el SDK (`/sdk/zeroid.js`) | Next.js 16, React 19 |
-| `expreso-caribe/` | Sitio de demostración de una empresa de buses que inicia sesión con ZeroID usando el SDK | Next.js 16 |
 | `backend/` | Oráculo: verificación, credenciales y API para sitios | FastAPI, DeepFace, Gemini, PostgreSQL + pgvector |
 | `app/` | App móvil: vincula el teléfono, aprueba inicios de sesión y muestra tus conexiones | Expo SDK 58, expo-router |
 | `docs/` | Arquitectura y guía de despliegue | |
@@ -26,7 +25,7 @@ ZeroID verifica atributos, no personas. Lee tu pasaporte y tu rostro una sola ve
 | Parte | Dónde |
 |---|---|
 | Web | Vercel: [platanus-hack-14.vercel.app](https://platanus-hack-14.vercel.app) |
-| Demo de Expreso Caribe | Vercel, proyecto aparte con *Root Directory* `expreso-caribe` |
+| Demo de Expreso Caribe | Vercel, desde su propio repo (ver abajo) |
 | Backend | DigitalOcean App Platform: `https://octopus-app-h5zq3.ondigitalocean.app` ([docs de la API](https://octopus-app-h5zq3.ondigitalocean.app/docs)) |
 | Base de datos | Neon (Postgres con pgvector) |
 
@@ -101,22 +100,23 @@ La web queda en `http://localhost:3000`.
 
 ### 4. Demo de Expreso Caribe
 
-Registra el cliente de la demo; el script escribe sus llaves en `expreso-caribe/.env.local`:
+La demo de una empresa que integra el SDK es un proyecto independiente, en su propio repo. Clónalo **junto a este**, en una carpeta `expreso-caribe` al mismo nivel que este repo.
+
+Registra el cliente de la demo. El script escribe sus llaves en `../expreso-caribe/.env.local`; si la clonaste en otro lugar, usa `--env-file`:
 
 ```bash
 cd backend
 python -m scripts.demo_client
 ```
 
-Luego:
+Luego, en el repo de la demo:
 
 ```bash
-cd expreso-caribe
 npm install
 npm run dev
 ```
 
-La demo queda en `http://localhost:3001`. Por defecto carga el SDK desde `http://localhost:3000` y canjea los inicios de sesión contra `http://localhost:8000`; se cambian con `NEXT_PUBLIC_ZEROID_URL` y `ZEROID_API_URL` (ver `expreso-caribe/.env.example`).
+La demo queda en `http://localhost:3001`. Por defecto carga el SDK desde `http://localhost:3000` y canjea los inicios de sesión contra `http://localhost:8000`.
 
 ### 5. App
 
@@ -141,7 +141,6 @@ Para la web y la app no hay pruebas automáticas; antes de subir cambios comprue
 
 ```bash
 cd frontend && npx next build
-cd expreso-caribe && npx next build
 cd app && npx tsc --noEmit
 ```
 
@@ -151,7 +150,7 @@ Desde `backend/`:
 
 | Comando | Qué hace |
 |---|---|
-| `python -m scripts.demo_client [--origin URL]` | Registra Expreso Caribe como cliente del SDK |
+| `python -m scripts.demo_client [--origin URL] [--env-file RUTA]` | Registra Expreso Caribe como cliente del SDK |
 | `python -m scripts.reset_db --yes` | Borra usuarios, cuentas, conexiones y solicitudes. Conserva las tablas y los clientes del SDK. **Usa la base de `DATABASE_URL`: revisa que no sea la de producción.** |
 
 ## Más documentación
