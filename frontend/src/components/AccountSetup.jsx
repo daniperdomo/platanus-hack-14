@@ -155,14 +155,17 @@ export default function AccountSetup({ token, profile }) {
         Elige un usuario y una contraseña. Tus datos se cifran en este navegador
         antes de salir: el servidor guarda el cifrado, no el contenido.
       </p>
+      <p className="auth-form__section">Datos verificados</p>
       <label className="auth-field">
         Nombre
-        <input value={profile.nombre || ""} readOnly />
+        <input value={profile.nombre || ""} title={profile.nombre || ""} readOnly />
       </label>
       <label className="auth-field">
         Documento
         <input value={profile.documento || ""} readOnly />
       </label>
+
+      <p className="auth-form__section">Tu cuenta</p>
       <label className="auth-field">
         Usuario
         <input
@@ -170,31 +173,39 @@ export default function AccountSetup({ token, profile }) {
           onChange={(event) => setUsername(event.target.value)}
           autoCapitalize="none"
           autoComplete="username"
+          placeholder="ej. maria.perez"
           required
         />
       </label>
+      <div className="auth-form__row">
+        <label className="auth-field">
+          Contraseña
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="new-password"
+            placeholder="Mínimo 8 caracteres"
+            required
+          />
+        </label>
+        <label className="auth-field">
+          Repite la contraseña
+          <input
+            type="password"
+            value={confirm}
+            onChange={(event) => setConfirm(event.target.value)}
+            autoComplete="new-password"
+            required
+          />
+        </label>
+      </div>
+
+      <p className="auth-form__section">Datos opcionales</p>
       <label className="auth-field">
-        Contraseña
-        <input
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="new-password"
-          required
-        />
-      </label>
-      <label className="auth-field">
-        Repite la contraseña
-        <input
-          type="password"
-          value={confirm}
-          onChange={(event) => setConfirm(event.target.value)}
-          autoComplete="new-password"
-          required
-        />
-      </label>
-      <label className="auth-field">
-        Correo (opcional, para encontrarte)
+        <span>
+          Correo <span className="auth-field__hint">· para encontrarte</span>
+        </span>
         <input
           type="email"
           value={email}
@@ -202,14 +213,25 @@ export default function AccountSetup({ token, profile }) {
           autoComplete="email"
         />
       </label>
-      <label className="auth-field">
-        Teléfono (opcional)
-        <input value={phone} onChange={(event) => setPhone(event.target.value)} />
-      </label>
-      <label className="auth-field">
-        Dirección (opcional)
-        <input value={address} onChange={(event) => setAddress(event.target.value)} />
-      </label>
+      <div className="auth-form__row">
+        <label className="auth-field">
+          Teléfono
+          <input
+            type="tel"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            autoComplete="tel"
+          />
+        </label>
+        <label className="auth-field">
+          Dirección
+          <input
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+            autoComplete="street-address"
+          />
+        </label>
+      </div>
       {error ? (
         <p className="liveness__error" role="alert">
           {error}

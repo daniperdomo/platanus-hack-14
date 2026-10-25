@@ -1314,6 +1314,50 @@ html[data-theme="dark"] .brand-logo img {
   border-color: var(--text);
 }
 
+.auth-form input[readonly] {
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.auth-field input {
+  width: 100%;
+}
+
+.auth-field__hint {
+  font-weight: 400;
+  color: var(--text-subtle);
+}
+
+.auth-form__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.auth-form__section {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.auth-form .btn {
+  margin-top: 0.5rem;
+}
+
 .auth-waiting {
   display: flex;
   align-items: center;
