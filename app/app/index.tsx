@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
@@ -6,15 +6,18 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import { claimPairing, fetchInbox, fetchRequest, markPaired } from '../lib/api';
 import { confirmIdentity } from '../lib/confirm';
 import { decryptJson, fromBase64Url } from '../lib/crypto';
 import { setPending } from '../lib/pending';
 import { loadWallet, saveWallet, type PrivateJwk, type Wallet } from '../lib/wallet';
-import { colors, hairline, radius, type, ui } from '../constants/theme';
+import { type ThemeColors, fonts, radius, useTheme } from '../constants/theme';
 
 const { width, height } = Dimensions.get('window');
 const FRAME_SIZE = width * 0.72;
+const CORNER = 28;
+const CORNER_WIDTH = 2;
 
 const FEATURES: { icon: keyof typeof Feather.glyphMap; title: string; description: string }[] = [
   {
@@ -52,6 +55,8 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ scan?: string }>();
+  const { colors, type, ui, scheme, hairline } = useTheme();
+  const styles = useMemo(() => createStyles(colors, hairline), [colors, hairline]);
 
   useEffect(() => {
     loadWallet()
@@ -59,9 +64,11 @@ export default function OnboardingScreen() {
       .finally(() => setReady(true));
   }, []);
 
-  useEffect(() => {
-    if (params.scan === 'approve' && wallet) setCameraMode('approve');
-  }, [params.scan, wallet]);
+  const [handledScan, setHandledScan] = useState<string | undefined>();
+  if (wallet && params.scan && params.scan !== handledScan) {
+    setHandledScan(params.scan);
+    setCameraMode('approve');
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -154,11 +161,14 @@ export default function OnboardingScreen() {
   if (!cameraMode) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
-        <StatusBar style="light" />
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
-        <View style={styles.brand}>
-          <View style={styles.logoMark} />
-          <Text style={styles.brandText}>ZeroID</Text>
+        <View style={styles.brandRow}>
+          <View style={styles.brand}>
+            <View style={styles.logoMark} />
+            <Text style={styles.brandText}>ZeroID</Text>
+          </View>
+          <ThemeSwitcher />
         </View>
 
         <View style={styles.hero}>
@@ -232,7 +242,7 @@ export default function OnboardingScreen() {
         >
           <View style={styles.cameraOverlay}>
             <View style={[styles.cameraHeader, { paddingTop: insets.top + 12 }]}>
-              <Text style={type.overline}>
+              <Text style={styles.cameraOverline}>
                 {cameraMode === 'pair' ? 'Vincular teléfono' : 'Aprobar un sitio'}
               </Text>
               <TouchableOpacity
@@ -240,7 +250,7 @@ export default function OnboardingScreen() {
                 onPress={() => setCameraMode(null)}
                 activeOpacity={0.7}
               >
-                <Feather name="x" size={20} color={colors.text} />
+                <Feather name="x" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
 
@@ -291,226 +301,225 @@ export default function OnboardingScreen() {
   );
 }
 
-const CORNER = 28;
-const CORNER_WIDTH = 2;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 24,
-  },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  logoMark: {
-    width: 14,
-    height: 14,
-    borderRadius: 3,
-    backgroundColor: colors.text,
-  },
-  brandText: {
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    color: colors.text,
-  },
-  hero: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  heroTitle: {
-    marginTop: 16,
-    marginBottom: 40,
-  },
-  heroTitleMuted: {
-    color: colors.textSubtle,
-  },
-  featureList: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 24,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingVertical: 20,
-  },
-  featureRowDivider: {
-    borderTopWidth: hairline,
-    borderTopColor: colors.border,
-  },
-  featureIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  featureTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  featureDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textMuted,
-  },
-  cta: {
-    gap: 8,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 14,
-  },
-  linkButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textMuted,
-  },
-  errorText: {
-    color: colors.destructive,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  cameraOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(13, 14, 17, 0.45)',
-  },
-  cameraHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scanFrame: {
-    position: 'absolute',
-    top: height * 0.24,
-    left: (width - FRAME_SIZE) / 2,
-    width: FRAME_SIZE,
-    height: FRAME_SIZE,
-  },
-  corner: {
-    position: 'absolute',
-    width: CORNER,
-    height: CORNER,
-    borderColor: colors.text,
-  },
-  cornerTopLeft: {
-    top: 0,
-    left: 0,
-    borderTopWidth: CORNER_WIDTH,
-    borderLeftWidth: CORNER_WIDTH,
-    borderTopLeftRadius: radius.md,
-  },
-  cornerTopRight: {
-    top: 0,
-    right: 0,
-    borderTopWidth: CORNER_WIDTH,
-    borderRightWidth: CORNER_WIDTH,
-    borderTopRightRadius: radius.md,
-  },
-  cornerBottomLeft: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: CORNER_WIDTH,
-    borderLeftWidth: CORNER_WIDTH,
-    borderBottomLeftRadius: radius.md,
-  },
-  cornerBottomRight: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: CORNER_WIDTH,
-    borderRightWidth: CORNER_WIDTH,
-    borderBottomRightRadius: radius.md,
-  },
-  instructions: {
-    position: 'absolute',
-    top: height * 0.24 + FRAME_SIZE + 32,
-    left: 24,
-    right: 24,
-    alignItems: 'center',
-    gap: 6,
-  },
-  instructionsTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-    color: colors.text,
-  },
-  instructionsSubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  captureButton: {
-    position: 'absolute',
-    left: width / 2 - 36,
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: colors.text,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  captureButtonInner: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: colors.text,
-  },
-  permission: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  permissionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  permissionTitle: {
-    marginBottom: 10,
-  },
-  permissionText: {
-    marginBottom: 32,
-  },
-  permissionButton: {
-    marginBottom: 4,
-  },
-});
+function createStyles(colors: ThemeColors, hairline: number) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      paddingHorizontal: 24,
+    },
+    brandRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    brand: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    logoMark: {
+      width: 14,
+      height: 14,
+      borderRadius: 3,
+      backgroundColor: colors.text,
+    },
+    brandText: {
+      fontFamily: fonts.bold,
+      fontSize: 17,
+      letterSpacing: -0.3,
+      color: colors.text,
+    },
+    hero: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    heroTitle: {
+      marginTop: 16,
+      marginBottom: 40,
+    },
+    heroTitleMuted: {
+      color: colors.textSubtle,
+    },
+    featureList: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 24,
+    },
+    featureRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      paddingVertical: 20,
+    },
+    featureRowDivider: {
+      borderTopWidth: hairline,
+      borderTopColor: colors.border,
+    },
+    featureIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    featureCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    featureTitle: {
+      fontFamily: fonts.semibold,
+      fontSize: 15,
+      color: colors.text,
+    },
+    featureDescription: {
+      fontFamily: fonts.regular,
+      fontSize: 13,
+      lineHeight: 18,
+      color: colors.textMuted,
+    },
+    cta: {
+      gap: 8,
+    },
+    linkButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingVertical: 14,
+    },
+    linkButtonText: {
+      fontFamily: fonts.semibold,
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    errorText: {
+      fontFamily: fonts.regular,
+      color: colors.destructive,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    cameraContainer: {
+      flex: 1,
+      backgroundColor: '#0D0E11',
+    },
+    cameraOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(13, 14, 17, 0.45)',
+    },
+    cameraHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+    },
+    cameraOverline: {
+      fontFamily: fonts.semibold,
+      fontSize: 11,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      color: 'rgba(255, 255, 255, 0.7)',
+    },
+    iconButton: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.pill,
+      borderWidth: hairline,
+      borderColor: 'rgba(255, 255, 255, 0.3)',
+      backgroundColor: 'rgba(13, 14, 17, 0.6)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scanFrame: {
+      position: 'absolute',
+      top: height * 0.24,
+      left: (width - FRAME_SIZE) / 2,
+      width: FRAME_SIZE,
+      height: FRAME_SIZE,
+    },
+    corner: {
+      position: 'absolute',
+      width: CORNER,
+      height: CORNER,
+      borderColor: '#FFFFFF',
+    },
+    cornerTopLeft: {
+      top: 0,
+      left: 0,
+      borderTopWidth: CORNER_WIDTH,
+      borderLeftWidth: CORNER_WIDTH,
+      borderTopLeftRadius: radius.md,
+    },
+    cornerTopRight: {
+      top: 0,
+      right: 0,
+      borderTopWidth: CORNER_WIDTH,
+      borderRightWidth: CORNER_WIDTH,
+      borderTopRightRadius: radius.md,
+    },
+    cornerBottomLeft: {
+      bottom: 0,
+      left: 0,
+      borderBottomWidth: CORNER_WIDTH,
+      borderLeftWidth: CORNER_WIDTH,
+      borderBottomLeftRadius: radius.md,
+    },
+    cornerBottomRight: {
+      bottom: 0,
+      right: 0,
+      borderBottomWidth: CORNER_WIDTH,
+      borderRightWidth: CORNER_WIDTH,
+      borderBottomRightRadius: radius.md,
+    },
+    instructions: {
+      position: 'absolute',
+      top: height * 0.24 + FRAME_SIZE + 32,
+      left: 24,
+      right: 24,
+      alignItems: 'center',
+      gap: 6,
+    },
+    instructionsTitle: {
+      fontFamily: fonts.semibold,
+      fontSize: 17,
+      letterSpacing: -0.2,
+      color: '#FFFFFF',
+    },
+    instructionsSubtitle: {
+      fontFamily: fonts.regular,
+      fontSize: 13,
+      color: 'rgba(255, 255, 255, 0.7)',
+      textAlign: 'center',
+    },
+    permission: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      backgroundColor: colors.background,
+    },
+    permissionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+    },
+    permissionTitle: {
+      marginBottom: 10,
+    },
+    permissionText: {
+      marginBottom: 32,
+    },
+    permissionButton: {
+      marginBottom: 4,
+    },
+  });
+}

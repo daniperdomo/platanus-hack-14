@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -27,6 +28,7 @@ export default function Nav() {
           <Link href="/autobuses">Demo</Link>
         </nav>
         <div className="nav__actions">
+          <ThemeSwitcher />
           <Link href="/login" className="btn btn--secondary btn--sm">
             Iniciar sesión
           </Link>

@@ -1,5 +1,9 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
+import ThemeProvider from "@/components/ThemeProvider";
 import "@/styles/globals.css";
+
+const THEME_BOOTSTRAP = `(function(){try{var stored=localStorage.getItem("zeroid-theme");var theme=stored==="light"||stored==="dark"||stored==="system"?stored:"system";var resolved=theme==="system"?(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):theme;document.documentElement.dataset.theme=resolved;document.documentElement.style.colorScheme=resolved;}catch(e){}})();`;
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -20,13 +24,21 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#0d0e11",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FAFAFA" },
+    { media: "(prefers-color-scheme: dark)", color: "#0D0E11" },
+  ],
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+    <html lang="es" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+      <body>
+        <Script id="zeroid-theme" strategy="beforeInteractive">
+          {THEME_BOOTSTRAP}
+        </Script>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

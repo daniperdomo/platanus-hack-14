@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { collectSession, loginAccount } from "@/lib/api";
 import { startGuestSession, startSession } from "@/lib/session";
 import { decryptJson, unwrapVaultKey } from "@/lib/vaultCrypto";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -70,10 +71,13 @@ export default function LoginPage() {
 
   return (
     <main className="auth">
-      <Link href="/" className="nav__brand auth__brand">
-        <span className="logo-mark" />
-        ZeroID
-      </Link>
+      <div className="auth__top">
+        <Link href="/" className="nav__brand auth__brand">
+          <span className="logo-mark" />
+          ZeroID
+        </Link>
+        <ThemeSwitcher />
+      </div>
 
       {step === "form" ? (
         <div className="auth-card">

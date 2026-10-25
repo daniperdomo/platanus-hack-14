@@ -10,7 +10,6 @@ import {
   DIMENSIONS,
   LEVELS,
   lastScan,
-  levelFor,
   sourcesCount,
   trustCompanies,
 } from "@/lib/trustData";
@@ -49,7 +48,7 @@ export default function AnalyticsPage() {
   const average = Math.round(
     trustCompanies.reduce((total, company) => total + company.score, 0) / trustCompanies.length
   );
-  const highRisk = trustCompanies.filter((company) => levelFor(company.score).grade === "D").length;
+  const highRisk = trustCompanies.filter((company) => company.grade === "D").length;
 
   const stats = [
     { label: "Empresas analizadas", value: trustCompanies.length },
