@@ -1,9 +1,9 @@
-"""Registra Expreso Caribe como cliente del SDK y guarda sus llaves en frontend/.env.local.
+"""Registra Expreso Caribe como cliente del SDK y guarda sus llaves en expreso-caribe/.env.local.
 
 Uso, desde backend/:
 
     python -m scripts.demo_client
-    python -m scripts.demo_client --origin http://localhost:3001
+    python -m scripts.demo_client --origin https://expreso-caribe.vercel.app
 """
 
 import argparse
@@ -15,9 +15,10 @@ from app.db.database import create_client, init_db
 from app.services import hashing
 
 NAME = "Expreso Caribe"
-ENV_FILE = Path(__file__).resolve().parents[2] / "frontend" / ".env.local"
-ID_KEY = "NEXT_PUBLIC_EXPRESO_CLIENT_ID"
-SECRET_KEY = "EXPRESO_CLIENT_SECRET"
+ENV_FILE = Path(__file__).resolve().parents[2] / "expreso-caribe" / ".env.local"
+ID_KEY = "NEXT_PUBLIC_ZEROID_CLIENT_ID"
+SECRET_KEY = "ZEROID_CLIENT_SECRET"
+DEFAULT_ORIGIN = "http://localhost:3001"
 
 
 def write_env(values: dict) -> None:
@@ -29,9 +30,9 @@ def write_env(values: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Registra el cliente de demostración de Expreso Caribe.")
-    parser.add_argument("--origin", action="append", help="Origen autorizado. Por defecto http://localhost:3000.")
+    parser.add_argument("--origin", action="append", help=f"Origen autorizado. Por defecto {DEFAULT_ORIGIN}.")
     args = parser.parse_args()
-    origins = sorted({normalize_origin(origin) for origin in args.origin or ["http://localhost:3000"]})
+    origins = sorted({normalize_origin(origin) for origin in args.origin or [DEFAULT_ORIGIN]})
 
     init_db()
     client_id = f"zid_live_{secrets.token_hex(8)}"

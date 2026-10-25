@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { API_URL } from "@/lib/api";
+import { DEMO_URL } from "@/lib/demo";
 import { buildSdkGuide, guideToHtml, guideToMarkdown } from "@/lib/sdkGuide";
 
 function CopyRow({ label, value, secret = false }) {
@@ -115,9 +116,9 @@ export default function Credentials({ company, credentials }) {
       </pre>
 
       <div className="form-actions">
-        <Link href="/autobuses" className="btn btn--secondary">
+        <a href={DEMO_URL} className="btn btn--secondary">
           Ver demo de integración
-        </Link>
+        </a>
         <Link href="/" className="btn btn--primary">
           Volver al inicio
         </Link>
