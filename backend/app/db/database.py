@@ -146,6 +146,7 @@ def init_db() -> None:
             )
             """
         )
+        purge_stale_disclosures(conn)
 
 
 def document_exists(document_hash: str) -> bool:
@@ -273,6 +274,7 @@ def approve_auth_request(
 ) -> bool:
     with psycopg.connect(settings.database_url) as conn:
         with conn.transaction():
+            purge_stale_disclosures(conn)
             row = conn.execute(
                 """
                 UPDATE auth_requests
@@ -298,6 +300,18 @@ def approve_auth_request(
     return True
 
 
+def purge_stale_disclosures(conn: psycopg.Connection) -> None:
+    """Approved requests that were never delivered must not keep personal data after expiring."""
+    conn.execute(
+        """
+        UPDATE auth_requests
+        SET disclosed_claims = NULL
+        WHERE disclosed_claims IS NOT NULL
+          AND (consumed_at IS NOT NULL OR expires_at <= NOW())
+        """
+    )
+
+
 def reject_auth_request(request_id: uuid.UUID) -> bool:
     with psycopg.connect(settings.database_url) as conn:
         row = conn.execute(
@@ -317,16 +331,27 @@ def reject_auth_request(request_id: uuid.UUID) -> bool:
 
 
 def consume_auth_request(request_id: uuid.UUID) -> Optional[dict]:
+    """Hands the disclosed claims over exactly once and erases them in the same statement."""
     with psycopg.connect(settings.database_url) as conn:
+        # RETURNING sees the updated row, so the claims are read from the locked
+        # pre-update snapshot before being set to NULL.
         row = conn.execute(
             """
+            WITH target AS (
+                SELECT id, client_name, disclosed_claims, credential_id, client_id
+                FROM auth_requests
+                WHERE id = %s
+                  AND approved_at IS NOT NULL
+                  AND consumed_at IS NULL
+                  AND expires_at > NOW()
+                FOR UPDATE
+            )
             UPDATE auth_requests
-            SET consumed_at = NOW()
-            WHERE id = %s
-              AND approved_at IS NOT NULL
-              AND consumed_at IS NULL
-              AND expires_at > NOW()
-            RETURNING client_name, disclosed_claims, credential_id, client_id
+            SET consumed_at = NOW(), disclosed_claims = NULL
+            FROM target
+            WHERE auth_requests.id = target.id
+            RETURNING target.client_name, target.disclosed_claims,
+                      target.credential_id, target.client_id
             """,
             (request_id,),
         ).fetchone()

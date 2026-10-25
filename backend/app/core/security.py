@@ -1,5 +1,4 @@
 import base64
-import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -17,21 +16,42 @@ from app.core.config import settings
 ISSUER = "zeroid-oraculo"
 ALGORITHM = "RS256"
 
-logger = logging.getLogger(__name__)
+DEVICE_JWK_FIELDS = ("kty", "crv", "x", "y")
+INVALID_DEVICE_JWK_DETAIL = "La llave del dispositivo no es válida: se espera una llave pública EC P-256."
+PRIVATE_DEVICE_JWK_DETAIL = "La llave del dispositivo incluye su parte privada. Envía solo la llave pública."
 
 
 @lru_cache
 def _private_key() -> rsa.RSAPrivateKey:
-    if settings.jwt_private_key:
-        # Hosting dashboards often store multiline PEMs with literal "\n".
-        pem = settings.jwt_private_key.replace("\\n", "\n").encode()
-        return serialization.load_pem_private_key(pem, password=None)
+    if not settings.jwt_private_key.strip():
+        raise RuntimeError("JWT_PRIVATE_KEY no está definida: no se pueden firmar credenciales.")
+    # Hosting dashboards often store multiline PEMs with literal "\n".
+    pem = settings.jwt_private_key.replace("\\n", "\n").encode()
+    return serialization.load_pem_private_key(pem, password=None)
 
-    logger.warning(
-        "JWT_PRIVATE_KEY no está definida: se usa una llave efímera y las "
-        "credenciales emitidas dejan de ser válidas al reiniciar."
-    )
-    return rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+def parse_device_jwk(raw: str) -> Dict[str, str]:
+    """Return only the public P-256 coordinates; anything else never reaches the token."""
+    try:
+        jwk = json.loads(raw)
+    except json.JSONDecodeError:
+        raise ValueError(INVALID_DEVICE_JWK_DETAIL)
+    if not isinstance(jwk, dict):
+        raise ValueError(INVALID_DEVICE_JWK_DETAIL)
+    if "d" in jwk:
+        raise ValueError(PRIVATE_DEVICE_JWK_DETAIL)
+    if jwk.get("kty") != "EC" or jwk.get("crv") != "P-256":
+        raise ValueError(INVALID_DEVICE_JWK_DETAIL)
+    if not (isinstance(jwk.get("x"), str) and isinstance(jwk.get("y"), str)):
+        raise ValueError(INVALID_DEVICE_JWK_DETAIL)
+
+    public = {field: jwk[field] for field in DEVICE_JWK_FIELDS}
+    try:
+        # Rejects coordinates of the wrong size or that are not a point on the curve.
+        PyJWK.from_dict(public)
+    except Exception:
+        raise ValueError(INVALID_DEVICE_JWK_DETAIL)
+    return public
 
 
 def public_key() -> rsa.RSAPublicKey:

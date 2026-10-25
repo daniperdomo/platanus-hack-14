@@ -92,6 +92,7 @@ def test_authorization_records_the_app_and_not_the_person(identity):
     assert request["disclosed_claims"] == {"mayor_de_edad": True}
     assert database.consume_auth_request(uuid.UUID(request_id))["claims"] == {"mayor_de_edad": True}
     assert database.consume_auth_request(uuid.UUID(request_id)) is None
+    assert database.get_auth_request(uuid.UUID(request_id))["disclosed_claims"] is None
 
     [connection] = database.list_connections(uuid.UUID(credential_id))
     assert connection["client_name"] == "test-tienda"
@@ -108,6 +109,19 @@ def test_authorization_records_the_app_and_not_the_person(identity):
             ).fetchall()
         }
     assert not {"rut", "name", "birth_date", "image", "document_hash"} & columns
+
+
+def test_expired_undelivered_disclosures_are_purged(identity):
+    _, _, credential_id = identity
+    request_id = database.create_auth_request("test-abandonada", ["nombre"], "challenge", 300)
+    database.approve_auth_request(uuid.UUID(request_id), uuid.UUID(credential_id), {"nombre": "Ana"})
+    with database.connect() as conn:
+        conn.execute(
+            "UPDATE auth_requests SET expires_at = NOW() - INTERVAL '1 second' WHERE id = %s",
+            (uuid.UUID(request_id),),
+        )
+        database.purge_stale_disclosures(conn)
+    assert database.get_auth_request(uuid.UUID(request_id))["disclosed_claims"] is None
 
 
 def test_credential_exists(identity):
