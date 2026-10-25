@@ -1,5 +1,3 @@
-import { DEMO_URL } from "@/lib/demo";
-
 const benefits = [
   {
     num: "01",
@@ -68,7 +66,7 @@ export default function BusinessSection() {
               <a href="/empresas/solicitar-api" className="btn btn--primary">
                 Solicitar API
               </a>
-              <a href={DEMO_URL} className="btn btn--secondary">
+              <a href="/autobuses" className="btn btn--secondary">
                 Ver demo en vivo
               </a>
             </div>

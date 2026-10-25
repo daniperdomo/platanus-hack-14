@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import BrandLogo from "@/components/BrandLogo";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
-import { DEMO_URL } from "@/lib/demo";
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -26,7 +25,7 @@ export default function Nav() {
           <a href="/#personas">Personas</a>
           <a href="/#empresas">Empresas</a>
           <a href="/#como-funciona">Cómo funciona</a>
-          <a href={DEMO_URL}>Demo</a>
+          <Link href="/autobuses">Demo</Link>
         </nav>
         <div className="nav__actions">
           <ThemeSwitcher />
