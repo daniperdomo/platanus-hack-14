@@ -1,27 +1,28 @@
-import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import PrivacyDossier from '../../components/PrivacyDossier';
-import { dataPointsFor, gradeFor, TRUST_COMPANIES, type TrustCompany } from '../../constants/trustData';
+import { gradeFor, TRUST_COMPANIES, type TrustCompany } from '../../constants/trustData';
 import { type ThemeColors, fonts, radius, useTheme } from '../../constants/theme';
 
 const RANKED = [...TRUST_COMPANIES].sort((a, b) => b.score - a.score);
+const REQUIRED_COLOR = '#B42318';
 
 export default function TrustScreen() {
+  const router = useRouter();
   const { colors, type, ui, scheme, hairline } = useTheme();
   const styles = useMemo(() => createStyles(colors, hairline), [colors, hairline]);
-  const [selected, setSelected] = useState<TrustCompany | null>(null);
 
   const average = Math.round(
     TRUST_COMPANIES.reduce((total, company) => total + company.score, 0) / TRUST_COMPANIES.length
   );
-  const highRisk = TRUST_COMPANIES.filter((company) => gradeFor(company.score) === 'F').length;
+  const highRisk = TRUST_COMPANIES.filter((company) => gradeFor(company.score) === 'D').length;
 
   const openCompany = async (company: TrustCompany) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelected(company);
+    router.push(`/trust/${company.id}`);
   };
 
   return (
@@ -47,7 +48,7 @@ export default function TrustScreen() {
             <Text style={styles.statLabel}>Promedio</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, highRisk > 0 && { color: colors.destructive }]}>
+            <Text style={[styles.statValue, highRisk > 0 && { color: REQUIRED_COLOR }]}>
               {highRisk}
             </Text>
             <Text style={styles.statLabel}>Alto riesgo</Text>
@@ -56,7 +57,7 @@ export default function TrustScreen() {
 
         {RANKED.map((company, index) => {
           const grade = gradeFor(company.score);
-          const isCritical = grade === 'F';
+          const isCritical = grade === 'D';
           return (
             <TouchableOpacity
               key={company.id}
@@ -70,11 +71,11 @@ export default function TrustScreen() {
                 <Text style={type.caption}>{company.category}</Text>
               </View>
               <View style={styles.scoreBlock}>
-                <Text style={[styles.score, isCritical && { color: colors.destructive }]}>
+                <Text style={[styles.score, isCritical && { color: REQUIRED_COLOR }]}>
                   {company.score}
                 </Text>
-                <View style={[styles.grade, isCritical && { borderColor: colors.destructive }]}>
-                  <Text style={[styles.gradeText, isCritical && { color: colors.destructive }]}>
+                <View style={[styles.grade, isCritical && { borderColor: REQUIRED_COLOR }]}>
+                  <Text style={[styles.gradeText, isCritical && { color: REQUIRED_COLOR }]}>
                     {grade}
                   </Text>
                 </View>
@@ -84,36 +85,6 @@ export default function TrustScreen() {
           );
         })}
       </ScrollView>
-
-      <Modal
-        visible={selected !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelected(null)}
-      >
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.backdrop} onPress={() => setSelected(null)} />
-          <View style={styles.modalCard}>
-            {selected ? (
-              <PrivacyDossier
-                companyData={{
-                  name: selected.name,
-                  trustScore: gradeFor(selected.score),
-                  dataPoints: dataPointsFor(selected.collects),
-                  retentionDays: selected.retentionDays,
-                }}
-              />
-            ) : null}
-            <TouchableOpacity
-              style={[ui.secondaryButton, styles.closeButton]}
-              onPress={() => setSelected(null)}
-              activeOpacity={0.7}
-            >
-              <Text style={ui.secondaryButtonText}>Cerrar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -206,22 +177,6 @@ function createStyles(colors: ThemeColors, hairline: number) {
       fontSize: 10,
       letterSpacing: 0.8,
       color: colors.textMuted,
-    },
-    modalRoot: {
-      flex: 1,
-      justifyContent: 'center',
-      padding: 20,
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFill,
-      backgroundColor: colors.overlay,
-    },
-    modalCard: {
-      gap: 16,
-    },
-    closeButton: {
-      alignSelf: 'center',
-      minWidth: 140,
     },
   });
 }

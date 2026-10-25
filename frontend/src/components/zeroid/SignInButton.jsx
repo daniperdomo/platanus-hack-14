@@ -7,7 +7,7 @@ export default function SignInButton({ onClick, disabled = false }) {
       onClick={onClick}
       disabled={disabled}
     >
-      <span className="zeroid-signin__logo" aria-hidden="true" />
+      <img src="/logo-mark.png" alt="" className="brand-logo brand-logo--mark zeroid-signin__logo" />
       <span>Continuar con ZeroID</span>
     </button>
   );

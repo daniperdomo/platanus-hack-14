@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import ThemeSwitcher from '../../components/ThemeSwitcher';
+import HeaderActions from '../../components/HeaderActions';
 import { fonts, hairline, useTheme } from '../../constants/theme';
 
 export default function TabsLayout() {
@@ -13,7 +13,7 @@ export default function TabsLayout() {
         headerShadowVisible: false,
         headerTintColor: colors.text,
         headerTitleStyle: { fontFamily: fonts.semibold },
-        headerRight: () => <ThemeSwitcher />,
+        headerRight: () => <HeaderActions />,
         headerRightContainerStyle: { paddingRight: 16 },
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textMuted,

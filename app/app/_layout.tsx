@@ -71,6 +71,21 @@ export default function RootLayout() {
             animation: 'fade',
           }}
         />
+        <Stack.Screen
+          name="trust/[id]"
+          options={{
+            title: 'Dossier',
+            headerBackTitle: 'Trust',
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="profile"
+          options={{
+            title: 'Perfil',
+            headerBackTitle: 'Atrás',
+          }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startGuestSession, startSession } from "@/lib/session";
+import BrandLogo from "@/components/BrandLogo";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -42,9 +43,8 @@ export default function LoginPage() {
   return (
     <main className="auth">
       <div className="auth__top">
-        <Link href="/" className="nav__brand auth__brand">
-          <span className="logo-mark" />
-          ZeroID
+        <Link href="/" className="nav__brand auth__brand" aria-label="ZeroID">
+          <BrandLogo variant="lockup" />
         </Link>
         <ThemeSwitcher />
       </div>
@@ -102,7 +102,7 @@ export default function LoginPage() {
           <div className="phone" aria-label="Simulación de la app del teléfono">
             <span className="phone__label">Simulación · App ZeroID</span>
             <div className="phone__screen">
-              <span className="logo-mark" />
+              <BrandLogo variant="mark" className="brand-logo--mark-lg" />
               <h2>¿Eres tú quien intenta iniciar sesión?</h2>
               <dl className="phone__meta">
                 <dt>Sitio</dt>

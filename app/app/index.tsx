@@ -6,7 +6,9 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import BrandLogo from '../components/BrandLogo';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import ZeroLoader from '../components/ZeroLoader';
 import { type ThemeColors, fonts, radius, useTheme } from '../constants/theme';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -36,24 +38,6 @@ const SCAN_COPY: Record<Exclude<Step, 'PROCESSING'>, { overline: string; title: 
   },
 };
 
-const FEATURES: { icon: keyof typeof Feather.glyphMap; title: string; description: string }[] = [
-  {
-    icon: 'log-in',
-    title: 'Un solo login',
-    description: 'Accede a múltiples servicios con una credencial.',
-  },
-  {
-    icon: 'shield',
-    title: 'Control de tus datos',
-    description: 'Decide qué compartes y con quién.',
-  },
-  {
-    icon: 'slash',
-    title: 'Revocación inmediata',
-    description: 'Corta cualquier acceso en un toque.',
-  },
-];
-
 function toUploadFile(uri: string) {
   return { uri, name: 'image.jpg', type: 'image/jpeg' } as unknown as Blob;
 }
@@ -79,6 +63,7 @@ async function submitVerification(passportUri: string, faceUri: string, signal: 
 
 export default function OnboardingScreen() {
   const [permission, requestPermission] = useCameraPermissions();
+  const [isLoading, setIsLoading] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [step, setStep] = useState<Step>('SCAN_PASSPORT');
   const [passportUri, setPassportUri] = useState<string | null>(null);
@@ -97,6 +82,21 @@ export default function OnboardingScreen() {
     setIsCameraReady(false);
     setStep('SCAN_PASSPORT');
   }, []);
+
+  useEffect(() => {
+    if (!isLoading) return;
+
+    const timer = setTimeout(async () => {
+      if (!permission?.granted) {
+        await requestPermission();
+      }
+      resetScan();
+      setIsCameraActive(true);
+      setIsLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [isLoading, permission?.granted, requestPermission, resetScan]);
 
   useEffect(() => {
     if (step !== 'PROCESSING' || !passportUri || !faceUri) return;
@@ -142,12 +142,9 @@ export default function OnboardingScreen() {
     }
   };
 
-  const startCamera = async () => {
-    if (!permission?.granted) {
-      await requestPermission();
-    }
-    resetScan();
-    setIsCameraActive(true);
+  const handleStart = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsLoading(true);
   };
 
   const closeCamera = () => {
@@ -155,68 +152,39 @@ export default function OnboardingScreen() {
     setIsCameraActive(false);
   };
 
+  if (isLoading || step === 'PROCESSING') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <ZeroLoader />
+      </>
+    );
+  }
+
   if (!isCameraActive) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
-        <View style={styles.brandRow}>
-          <View style={styles.brand}>
-            <View style={styles.logoMark} />
-            <Text style={styles.brandText}>ZeroID</Text>
-          </View>
+        <View style={styles.topBar}>
           <ThemeSwitcher />
         </View>
 
         <View style={styles.hero}>
-          <Text style={type.overline}>Smart SSO · Gestor de privacidad</Text>
-          <Text style={[type.display, styles.heroTitle]}>
-            Demuestra que eres real.{' '}
-            <Text style={styles.heroTitleMuted}>Sin revelar quién eres.</Text>
-          </Text>
-
-          <View style={styles.featureList}>
-            {FEATURES.map((feature, index) => (
-              <View
-                key={feature.title}
-                style={[styles.featureRow, index > 0 && styles.featureRowDivider]}
-              >
-                <View style={styles.featureIcon}>
-                  <Feather name={feature.icon} size={16} color={colors.text} />
-                </View>
-                <View style={styles.featureCopy}>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDescription}>{feature.description}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
+          <BrandLogo variant="lockup" height={36} />
+          <Text style={styles.headline}>Zero-Retention Identity</Text>
+          <Text style={styles.subhead}>Demuestra que eres real. Sin revelar quién eres.</Text>
         </View>
 
-        <View style={styles.cta}>
-          <TouchableOpacity style={ui.primaryButton} onPress={startCamera} activeOpacity={0.85}>
-            <Feather name="camera" size={18} color={colors.inverse} />
-            <Text style={ui.primaryButtonText}>Verificar identidad</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.linkButton}
-            onPress={() => router.push('/dashboard')}
-            activeOpacity={0.6}
-          >
-            <Text style={styles.linkButtonText}>Ver mis accesos activos</Text>
-            <Feather name="chevron-right" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  if (step === 'PROCESSING') {
-    return (
-      <View style={styles.processing}>
-        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-        <Text style={styles.processingText}>[ ENCRIPTANDO PAYLOAD... ]</Text>
+        <TouchableOpacity
+          style={styles.scanButton}
+          onPress={handleStart}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Escanear pasaporte"
+        >
+          <Text style={styles.scanButtonText}>Escanear Pasaporte</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -292,220 +260,168 @@ export default function OnboardingScreen() {
 
 function createStyles(colors: ThemeColors, hairline: number) {
   return StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 24,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  logoMark: {
-    width: 14,
-    height: 14,
-    borderRadius: 3,
-    backgroundColor: colors.text,
-  },
-  brandText: {
-    fontFamily: fonts.bold,
-    fontSize: 17,
-    letterSpacing: -0.3,
-    color: colors.text,
-  },
-  hero: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  heroTitle: {
-    marginTop: 16,
-    marginBottom: 40,
-  },
-  heroTitleMuted: {
-    color: colors.textSubtle,
-  },
-  featureList: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 24,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingVertical: 20,
-  },
-  featureRowDivider: {
-    borderTopWidth: hairline,
-    borderTopColor: colors.border,
-  },
-  featureIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  featureTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-    color: colors.text,
-  },
-  featureDescription: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textMuted,
-  },
-  cta: {
-    gap: 8,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 14,
-  },
-  linkButtonText: {
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  cameraOverlay: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: 'rgba(13, 14, 17, 0.45)',
-  },
-  cameraHeader: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    borderWidth: hairline,
-    borderColor: colors.border,
-    backgroundColor: colors.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scanArea: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 32,
-  },
-  passportFrame: {
-    width: PASSPORT_FRAME_WIDTH,
-    height: PASSPORT_FRAME_HEIGHT,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    borderColor: FRAME_BORDER,
-  },
-  faceFrame: {
-    width: FACE_FRAME_SIZE,
-    height: FACE_FRAME_SIZE,
-    borderRadius: FACE_FRAME_SIZE / 2,
-    borderWidth: hairline,
-    borderColor: FRAME_BORDER,
-  },
-  instructions: {
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    gap: 6,
-  },
-  instructionsTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 17,
-    letterSpacing: -0.2,
-    color: colors.text,
-  },
-  instructionsSubtitle: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  captureButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: colors.text,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  captureButtonDisabled: {
-    opacity: 0.4,
-  },
-  captureButtonInner: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: colors.text,
-  },
-  processing: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  processingText: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    letterSpacing: 1,
-    color: colors.textMuted,
-  },
-  permission: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  permissionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  permissionTitle: {
-    marginBottom: 10,
-  },
-  permissionText: {
-    marginBottom: 32,
-  },
-  permissionButton: {
-    marginBottom: 4,
-  },
-});
+    container: {
+      flex: 1,
+      backgroundColor: '#0D0E11',
+      paddingHorizontal: 24,
+    },
+    topBar: {
+      alignItems: 'flex-end',
+    },
+    hero: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+    },
+    headline: {
+      fontFamily: fonts.bold,
+      fontSize: 28,
+      letterSpacing: -0.6,
+      color: '#FFFFFF',
+      textAlign: 'center',
+    },
+    subhead: {
+      fontFamily: fonts.regular,
+      fontSize: 15,
+      lineHeight: 22,
+      color: '#8A8F9C',
+      textAlign: 'center',
+    },
+    scanButton: {
+      height: 52,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#FFFFFF',
+      borderRadius: 6,
+      elevation: 0,
+      shadowOpacity: 0,
+    },
+    scanButtonText: {
+      fontFamily: fonts.semibold,
+      fontSize: 16,
+      color: '#111111',
+    },
+    linkButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingVertical: 14,
+    },
+    linkButtonText: {
+      fontFamily: fonts.semibold,
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    cameraContainer: {
+      flex: 1,
+      backgroundColor: '#0D0E11',
+    },
+    cameraOverlay: {
+      flex: 1,
+      alignItems: 'center',
+      backgroundColor: 'rgba(13, 14, 17, 0.45)',
+    },
+    cameraHeader: {
+      alignSelf: 'stretch',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+    },
+    iconButton: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.pill,
+      borderWidth: hairline,
+      borderColor: colors.border,
+      backgroundColor: colors.overlay,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scanArea: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 32,
+    },
+    passportFrame: {
+      width: PASSPORT_FRAME_WIDTH,
+      height: PASSPORT_FRAME_HEIGHT,
+      borderRadius: radius.md,
+      borderWidth: hairline,
+      borderColor: FRAME_BORDER,
+    },
+    faceFrame: {
+      width: FACE_FRAME_SIZE,
+      height: FACE_FRAME_SIZE,
+      borderRadius: FACE_FRAME_SIZE / 2,
+      borderWidth: hairline,
+      borderColor: FRAME_BORDER,
+    },
+    instructions: {
+      paddingHorizontal: 24,
+      alignItems: 'center',
+      gap: 6,
+    },
+    instructionsTitle: {
+      fontFamily: fonts.semibold,
+      fontSize: 17,
+      letterSpacing: -0.2,
+      color: colors.text,
+    },
+    instructionsSubtitle: {
+      fontFamily: fonts.regular,
+      fontSize: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    captureButton: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      borderWidth: 2,
+      borderColor: colors.text,
+      backgroundColor: 'transparent',
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 0,
+      shadowOpacity: 0,
+    },
+    captureButtonDisabled: {
+      opacity: 0.4,
+    },
+    captureButtonInner: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: colors.text,
+    },
+    permission: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+    },
+    permissionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+    },
+    permissionTitle: {
+      marginBottom: 10,
+    },
+    permissionText: {
+      marginBottom: 32,
+    },
+    permissionButton: {
+      marginBottom: 4,
+    },
+  });
 }

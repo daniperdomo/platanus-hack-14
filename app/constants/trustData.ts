@@ -1,206 +1,374 @@
-import type { FeatherIconName, TrustScore } from '../components/PrivacyDossier';
+export type TrustGrade = 'A' | 'B' | 'C' | 'D';
 
-export type TrustCompany = {
+export type PolicyStatus = 'required' | 'optional' | 'zkp' | 'ignored';
+
+export type PolicyPoint = {
+  category: string;
+  label: string;
+  status: PolicyStatus;
+  reason: string;
+  retentionDays: number;
+};
+
+export type DimensionScores = {
+  privacidad: number;
+  seguridad: number;
+  transparencia: number;
+  minimizacion: number;
+  derechos: number;
+};
+
+export type Company = {
   id: string;
   name: string;
   domain: string;
   category: string;
-  score: number;
   trend: number;
-  collects: string[];
+  scores: DimensionScores;
+  policies: PolicyPoint[];
   incidents: { year: number; text: string }[];
-  retentionDays: number;
+  signatureAlgorithm: string;
 };
 
-export const TRUST_COMPANIES: TrustCompany[] = [
+export type TrustCompany = Company & {
+  score: number;
+  grade: TrustGrade;
+};
+
+export const DIMENSIONS = [
+  {
+    key: 'privacidad',
+    label: 'Privacidad',
+    weight: 0.25,
+    description: 'Qué tan clara y respetuosa es su política de privacidad.',
+  },
+  {
+    key: 'seguridad',
+    label: 'Seguridad',
+    weight: 0.25,
+    description: 'Historial de brechas y filtraciones de datos.',
+  },
+  {
+    key: 'transparencia',
+    label: 'Transparencia',
+    weight: 0.2,
+    description: 'Si declara para qué usa cada dato y con quién lo comparte.',
+  },
+  {
+    key: 'minimizacion',
+    label: 'Minimización',
+    weight: 0.15,
+    description: 'Si pide solo los datos que necesita para operar.',
+  },
+  {
+    key: 'derechos',
+    label: 'Derechos del usuario',
+    weight: 0.15,
+    description: 'Facilidad para descargar, corregir o borrar tus datos.',
+  },
+] as const;
+
+export const CATEGORIES = [
+  'Todas',
+  'Redes sociales',
+  'Tecnología',
+  'Comercio',
+  'Finanzas',
+  'Transporte',
+  'Entretenimiento',
+] as const;
+
+export const LEVELS = [
+  { min: 80, grade: 'A' as const, label: 'Confiable', tone: 'good', icon: '✓' },
+  { min: 65, grade: 'B' as const, label: 'Aceptable', tone: 'warning', icon: '!' },
+  { min: 50, grade: 'C' as const, label: 'Riesgo moderado', tone: 'serious', icon: '▲' },
+  { min: 0, grade: 'D' as const, label: 'Alto riesgo', tone: 'critical', icon: '✕' },
+];
+
+export const POLICY_STATUS_LABEL: Record<PolicyStatus, string> = {
+  required: 'REQUERIDO',
+  optional: 'OPCIONAL',
+  zkp: 'HASH ZKP',
+  ignored: 'IGNORADO',
+};
+
+function policy(
+  category: string,
+  label: string,
+  status: PolicyStatus,
+  reason: string,
+  retentionDays: number
+): PolicyPoint {
+  return { category, label, status, reason, retentionDays };
+}
+
+const companies: Company[] = [
   {
     id: 'apple',
     name: 'Apple',
     domain: 'apple.com',
     category: 'Tecnología',
-    score: 86,
     trend: 2,
-    collects: ['Nombre', 'Correo', 'Pagos', 'Ubicación aproximada'],
+    scores: { privacidad: 90, seguridad: 85, transparencia: 84, minimizacion: 82, derechos: 88 },
+    signatureAlgorithm: 'ES256',
     incidents: [],
-    retentionDays: 0,
+    policies: [
+      policy('Identidad', 'Nombre', 'zkp', 'Confirma tu Apple ID sin almacenar el nombre en claro.', 0),
+      policy('Contacto', 'Correo', 'optional', 'Recibos, recuperación de cuenta y avisos de seguridad.', 365),
+      policy('Finanzas', 'Pagos', 'required', 'Procesa compras en App Store e iCloud.', 1825),
+      policy('Ubicación', 'Ubicación aproximada', 'ignored', 'Sugerencias locales. No se usa para anuncios.', 0),
+      policy('Dispositivo', 'Uso de dispositivos', 'zkp', 'Hash del dispositivo para Find My y continuidad.', 90),
+    ],
   },
   {
     id: 'spotify',
     name: 'Spotify',
     domain: 'spotify.com',
     category: 'Entretenimiento',
-    score: 76,
     trend: 0,
-    collects: ['Correo', 'Fecha de nacimiento', 'Historial de escucha'],
+    scores: { privacidad: 74, seguridad: 80, transparencia: 76, minimizacion: 70, derechos: 82 },
+    signatureAlgorithm: 'RS256',
     incidents: [],
-    retentionDays: 90,
+    policies: [
+      policy('Contacto', 'Correo', 'zkp', 'Inicia sesión y recupera la cuenta con un hash verificable.', 0),
+      policy('Identidad', 'Fecha de nacimiento', 'optional', 'Restringe contenido y recomendaciones por edad.', 365),
+      policy('Comportamiento', 'Historial de escucha', 'optional', 'Personaliza playlists y la radio.', 540),
+      policy('Finanzas', 'Pagos', 'required', 'Cobra la suscripción Premium y valida el medio de pago.', 1825),
+    ],
   },
   {
     id: 'microsoft',
     name: 'Microsoft',
     domain: 'microsoft.com',
     category: 'Tecnología',
-    score: 75,
     trend: -1,
-    collects: ['Nombre', 'Correo', 'Teléfono', 'Telemetría'],
+    scores: { privacidad: 76, seguridad: 70, transparencia: 78, minimizacion: 68, derechos: 84 },
+    signatureAlgorithm: 'RS256',
     incidents: [],
-    retentionDays: 180,
+    policies: [
+      policy('Identidad', 'Nombre', 'zkp', 'Muestra tu perfil de cuenta sin persistir el nombre en claro.', 0),
+      policy('Contacto', 'Correo', 'required', 'Identificador principal de la cuenta Microsoft.', 365),
+      policy('Contacto', 'Teléfono', 'optional', 'Segundo factor y recuperación de acceso.', 365),
+      policy('Dispositivo', 'Telemetría', 'ignored', 'Diagnóstico opcional del sistema. Se puede desactivar.', 90),
+      policy('Finanzas', 'Pagos', 'required', 'Factura Microsoft 365, Xbox y la Store.', 1825),
+    ],
   },
   {
     id: 'paypal',
     name: 'PayPal',
     domain: 'paypal.com',
     category: 'Finanzas',
-    score: 71,
     trend: 1,
-    collects: ['Nombre', 'Documento', 'Dirección', 'Cuentas bancarias'],
+    scores: { privacidad: 72, seguridad: 74, transparencia: 70, minimizacion: 62, derechos: 76 },
+    signatureAlgorithm: 'RS256',
     incidents: [],
-    retentionDays: 1825,
+    policies: [
+      policy('Identidad', 'Nombre', 'required', 'Titular de la cuenta para cumplimiento KYC.', 2555),
+      policy('Identidad', 'Documento', 'required', 'Verificación de identidad exigida por regulación financiera.', 2555),
+      policy('Identidad', 'Dirección', 'required', 'Domicilio fiscal y prevención de fraude.', 2555),
+      policy('Finanzas', 'Cuentas bancarias', 'required', 'Origen y destino de transferencias.', 2555),
+      policy('Comportamiento', 'Historial de pagos', 'optional', 'Detecta patrones de fraude y disputa cobros.', 1825),
+    ],
   },
   {
     id: 'netflix',
     name: 'Netflix',
     domain: 'netflix.com',
     category: 'Entretenimiento',
-    score: 71,
     trend: 0,
-    collects: ['Correo', 'Pagos', 'Historial de visualización'],
+    scores: { privacidad: 70, seguridad: 78, transparencia: 68, minimizacion: 66, derechos: 74 },
+    signatureAlgorithm: 'RS256',
     incidents: [],
-    retentionDays: 365,
+    policies: [
+      policy('Contacto', 'Correo', 'zkp', 'Acceso a la cuenta sin exponer el correo en claro a terceros.', 0),
+      policy('Finanzas', 'Pagos', 'required', 'Cobra la suscripción mensual.', 1825),
+      policy('Comportamiento', 'Historial de visualización', 'optional', 'Continúa viendo y recomienda títulos.', 365),
+      policy('Dispositivo', 'Dispositivos', 'ignored', 'Controla el límite de pantallas simultáneas.', 90),
+    ],
   },
   {
     id: 'airbnb',
     name: 'Airbnb',
     domain: 'airbnb.com',
     category: 'Transporte',
-    score: 67,
     trend: 3,
-    collects: ['Nombre', 'Documento', 'Selfie', 'Ubicación'],
+    scores: { privacidad: 66, seguridad: 72, transparencia: 70, minimizacion: 54, derechos: 72 },
+    signatureAlgorithm: 'RS256',
     incidents: [],
-    retentionDays: 730,
+    policies: [
+      policy('Identidad', 'Nombre', 'zkp', 'Confirma que eres una persona real ante el anfitrión.', 0),
+      policy('Identidad', 'Documento', 'required', 'Verificación de identidad de huéspedes y anfitriones.', 730),
+      policy('Biometría', 'Selfie', 'required', 'Compara el documento con tu rostro al verificar la cuenta.', 90),
+      policy('Contacto', 'Teléfono', 'optional', 'Coordinación de llegadas y soporte.', 365),
+      policy('Finanzas', 'Pagos', 'required', 'Cobra reservas y retiene depósitos.', 1825),
+      policy('Ubicación', 'Ubicación', 'ignored', 'Muestra estancias cercanas. No se rastrea en segundo plano.', 0),
+    ],
   },
   {
     id: 'mercadolibre',
     name: 'Mercado Libre',
     domain: 'mercadolibre.com',
     category: 'Comercio',
-    score: 63,
     trend: -2,
-    collects: ['Nombre', 'Documento', 'Dirección', 'Pagos'],
+    scores: { privacidad: 64, seguridad: 60, transparencia: 66, minimizacion: 58, derechos: 68 },
+    signatureAlgorithm: 'RS256',
     incidents: [{ year: 2022, text: 'Acceso no autorizado a datos de unos 300.000 usuarios.' }],
-    retentionDays: 1095,
+    policies: [
+      policy('Identidad', 'Nombre', 'required', 'Emite facturas y contratos de compraventa.', 1095),
+      policy('Identidad', 'Documento', 'required', 'KYC de Mercado Pago y vendedores.', 1095),
+      policy('Identidad', 'Dirección', 'required', 'Entrega de pedidos y cálculo de envío.', 1095),
+      policy('Contacto', 'Teléfono', 'optional', 'Avisos de envío y soporte del comprador.', 365),
+      policy('Finanzas', 'Pagos', 'required', 'Procesa cobros y retenciones de Mercado Pago.', 1825),
+      policy('Comportamiento', 'Historial de compras', 'optional', 'Recomendaciones y reputación de la cuenta.', 730),
+    ],
   },
   {
     id: 'amazon',
     name: 'Amazon',
     domain: 'amazon.com',
     category: 'Comercio',
-    score: 59,
     trend: -1,
-    collects: ['Nombre', 'Dirección', 'Pagos', 'Grabaciones de voz'],
-    incidents: [{ year: 2021, text: 'Multa de 746 M€ en Luxemburgo por publicidad basada en datos personales.' }],
-    retentionDays: 1095,
+    scores: { privacidad: 54, seguridad: 70, transparencia: 58, minimizacion: 48, derechos: 70 },
+    signatureAlgorithm: 'RS256',
+    incidents: [
+      {
+        year: 2021,
+        text: 'Multa de 746 M€ en Luxemburgo por publicidad basada en datos personales (GDPR).',
+      },
+    ],
+    policies: [
+      policy('Identidad', 'Nombre', 'required', 'Titular del pedido y de la factura.', 1095),
+      policy('Identidad', 'Dirección', 'required', 'Entrega física y zonas de envío Prime.', 1095),
+      policy('Finanzas', 'Pagos', 'required', 'Cobra pedidos y suscripciones Prime.', 1825),
+      policy('Comportamiento', 'Historial de compras', 'optional', 'Recomendaciones y remarketing.', 1095),
+      policy('Biometría', 'Grabaciones de voz', 'ignored', 'Alexa. Se puede borrar o desactivar.', 90),
+    ],
   },
   {
     id: 'google',
     name: 'Google',
     domain: 'google.com',
     category: 'Tecnología',
-    score: 61,
     trend: 1,
-    collects: ['Nombre', 'Correo', 'Ubicación', 'Historial de búsqueda'],
-    incidents: [{ year: 2019, text: 'Multa de 50 M€ de la CNIL por falta de transparencia en el consentimiento.' }],
-    retentionDays: 540,
+    scores: { privacidad: 50, seguridad: 82, transparencia: 62, minimizacion: 40, derechos: 80 },
+    signatureAlgorithm: 'ES256',
+    incidents: [
+      { year: 2019, text: 'Multa de 50 M€ de la CNIL por falta de transparencia en el consentimiento.' },
+    ],
+    policies: [
+      policy('Identidad', 'Nombre', 'zkp', 'Muestra tu perfil sin copiar el nombre a productos publicitarios.', 0),
+      policy('Contacto', 'Correo', 'required', 'Identificador de la cuenta Google.', 365),
+      policy('Contacto', 'Teléfono', 'optional', 'Recuperación y verificación en dos pasos.', 365),
+      policy('Ubicación', 'Ubicación', 'required', 'Maps, resultados locales y anuncios geolocalizados.', 540),
+      policy('Comportamiento', 'Historial de búsqueda', 'optional', 'Personaliza resultados y YouTube.', 540),
+      policy('Contacto', 'Contactos', 'ignored', 'Sugerencias de compartir. No se sincroniza por defecto.', 0),
+    ],
   },
   {
     id: 'uber',
     name: 'Uber',
     domain: 'uber.com',
     category: 'Transporte',
-    score: 54,
     trend: 2,
-    collects: ['Nombre', 'Teléfono', 'Ubicación en tiempo real', 'Pagos'],
+    scores: { privacidad: 56, seguridad: 42, transparencia: 58, minimizacion: 50, derechos: 66 },
+    signatureAlgorithm: 'RS256',
     incidents: [
-      { year: 2016, text: 'Brecha que expuso datos de 57 millones de usuarios y conductores.' },
+      { year: 2016, text: 'Brecha que expuso datos de 57 millones de usuarios y conductores, ocultada por un año.' },
+      { year: 2022, text: 'Intrusión en sistemas internos tras robo de credenciales de un contratista.' },
     ],
-    retentionDays: 2555,
+    policies: [
+      policy('Identidad', 'Nombre', 'required', 'Identifica al pasajero ante el conductor.', 2555),
+      policy('Contacto', 'Teléfono', 'required', 'Coordina el viaje y envía el PIN de verificación.', 2555),
+      policy('Ubicación', 'Ubicación en tiempo real', 'required', 'Asigna el viaje y traza la ruta mientras está activo.', 2555),
+      policy('Finanzas', 'Pagos', 'required', 'Cobra el viaje y propinas.', 1825),
+      policy('Comportamiento', 'Historial de viajes', 'optional', 'Recibos, soporte y detección de fraude.', 730),
+    ],
   },
   {
     id: 'x',
     name: 'X (Twitter)',
     domain: 'x.com',
     category: 'Redes sociales',
-    score: 47,
     trend: -4,
-    collects: ['Correo', 'Teléfono', 'Ubicación', 'Contactos'],
-    incidents: [{ year: 2022, text: 'Filtración de datos de 5,4 millones de cuentas.' }],
-    retentionDays: 365,
+    scores: { privacidad: 46, seguridad: 40, transparencia: 44, minimizacion: 50, derechos: 58 },
+    signatureAlgorithm: 'RS256',
+    incidents: [
+      { year: 2022, text: 'Filtración de datos de 5,4 millones de cuentas por una vulnerabilidad de la API.' },
+    ],
+    policies: [
+      policy('Contacto', 'Correo', 'required', 'Crea la cuenta y recupera el acceso.', 365),
+      policy('Contacto', 'Teléfono', 'optional', 'Verifica la cuenta y sugiere contactos.', 365),
+      policy('Ubicación', 'Ubicación', 'optional', 'Tendencias locales y anuncios geolocalizados.', 365),
+      policy('Contacto', 'Contactos', 'ignored', 'Sugerencias de seguimiento si subes tu agenda.', 90),
+      policy('Comportamiento', 'Mensajes', 'optional', 'Almacena DMs para sincronizar dispositivos.', 365),
+    ],
   },
   {
     id: 'tiktok',
     name: 'TikTok',
     domain: 'tiktok.com',
     category: 'Redes sociales',
-    score: 42,
     trend: -2,
-    collects: ['Fecha de nacimiento', 'Teléfono', 'Biometría facial y de voz'],
-    incidents: [{ year: 2023, text: 'Multa de 345 M€ en Irlanda por el manejo de datos de menores.' }],
-    retentionDays: 540,
+    scores: { privacidad: 36, seguridad: 52, transparencia: 38, minimizacion: 34, derechos: 56 },
+    signatureAlgorithm: 'RS256',
+    incidents: [{ year: 2023, text: 'Multa de 345 M€ en Irlanda por el manejo de datos de menores (GDPR).' }],
+    policies: [
+      policy('Identidad', 'Fecha de nacimiento', 'required', 'Aplica el muro de edad y limita cuentas de menores.', 540),
+      policy('Contacto', 'Teléfono', 'optional', 'Recuperación de cuenta y sugerencias de amigos.', 540),
+      policy('Ubicación', 'Ubicación', 'optional', 'Feed local y anuncios por zona.', 540),
+      policy('Contacto', 'Contactos', 'ignored', 'Sugerencias si concedes acceso a la agenda.', 90),
+      policy('Biometría', 'Biometría facial y de voz', 'required', 'Efectos, moderación y detección de menores.', 540),
+    ],
   },
   {
     id: 'meta',
     name: 'Meta (Facebook)',
     domain: 'facebook.com',
     category: 'Redes sociales',
-    score: 39,
     trend: -3,
-    collects: ['Nombre', 'Teléfono', 'Ubicación', 'Actividad fuera de la app'],
+    scores: { privacidad: 32, seguridad: 38, transparencia: 42, minimizacion: 30, derechos: 62 },
+    signatureAlgorithm: 'RS256',
     incidents: [
-      { year: 2023, text: 'Multa récord de 1.200 M€ por transferir datos de europeos a EE. UU.' },
+      { year: 2021, text: 'Publicación de datos de 533 millones de usuarios obtenidos por scraping.' },
+      { year: 2023, text: 'Multa récord de 1.200 M€ por transferir datos de europeos a EE. UU. (GDPR).' },
     ],
-    retentionDays: 730,
+    policies: [
+      policy('Identidad', 'Nombre', 'required', 'Identidad pública del perfil y de las páginas.', 730),
+      policy('Contacto', 'Teléfono', 'optional', 'Recuperación, 2FA y sugerencias de amistad.', 730),
+      policy('Ubicación', 'Ubicación', 'optional', 'Anuncios locales y recuerdos geolocalizados.', 730),
+      policy('Contacto', 'Contactos', 'ignored', 'Sugerencias de amigos si subes la agenda.', 180),
+      policy('Comportamiento', 'Intereses', 'optional', 'Alimenta el feed y el sistema publicitario.', 730),
+      policy('Comportamiento', 'Actividad fuera de la app', 'required', 'Pixel y eventos de sitios asociados para anuncios.', 730),
+    ],
   },
 ];
 
-export function gradeFor(score: number): TrustScore {
+export function trustScore(scores: DimensionScores): number {
+  return Math.round(
+    DIMENSIONS.reduce((total, dimension) => total + scores[dimension.key] * dimension.weight, 0)
+  );
+}
+
+export function gradeFor(score: number): TrustGrade {
   if (score >= 80) return 'A';
   if (score >= 65) return 'B';
   if (score >= 50) return 'C';
-  return 'F';
+  return 'D';
 }
 
-const ICON_FOR: Record<string, FeatherIconName> = {
-  Nombre: 'user',
-  Correo: 'mail',
-  Teléfono: 'phone',
-  Documento: 'credit-card',
-  Dirección: 'home',
-  Pagos: 'credit-card',
-  Ubicación: 'map-pin',
-  'Ubicación aproximada': 'map-pin',
-  'Ubicación en tiempo real': 'map-pin',
-  Selfie: 'camera',
-  Contactos: 'users',
-  Telemetría: 'activity',
-  'Fecha de nacimiento': 'calendar',
-  'Historial de escucha': 'music',
-  'Historial de visualización': 'film',
-  'Historial de búsqueda': 'search',
-  'Grabaciones de voz': 'mic',
-  'Biometría facial y de voz': 'eye',
-  'Cuentas bancarias': 'dollar-sign',
-  'Actividad fuera de la app': 'globe',
-};
-
-export function dataPointsFor(collects: string[]) {
-  return collects.map((label, index) => {
-    const lower = label.toLowerCase();
-    const required = lower.includes('ubicaci') || lower.includes('biometr') || lower.includes('documento');
-    return {
-      id: `${label}-${index}`,
-      label,
-      icon: ICON_FOR[label] ?? 'circle',
-      status: required ? ('required' as const) : index === 0 ? ('zkp' as const) : ('ignored' as const),
-    };
-  });
+export function levelFor(score: number) {
+  return LEVELS.find((level) => score >= level.min) ?? LEVELS[LEVELS.length - 1];
 }
+
+export const TRUST_COMPANIES: TrustCompany[] = companies.map((company) => {
+  const score = trustScore(company.scores);
+  return { ...company, score, grade: gradeFor(score) };
+});
+
+export function companyById(id: string | undefined): TrustCompany | undefined {
+  if (!id) return undefined;
+  return TRUST_COMPANIES.find((company) => company.id === id);
+}
+
+export const lastScan = '2026-10-24 06:00';
+export const sourcesCount = 1284;

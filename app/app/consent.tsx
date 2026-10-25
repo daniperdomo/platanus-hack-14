@@ -18,10 +18,29 @@ const MOCK_APP = {
 const MOCK_COMPANY: CompanyData = {
   name: 'Yummy',
   trustScore: 'B',
-  dataPoints: [
-    { id: 'identity', label: 'Identity', icon: 'user', status: 'zkp' },
-    { id: 'location', label: 'Location', icon: 'map-pin', status: 'required' },
-    { id: 'device', label: 'Device Data', icon: 'smartphone', status: 'ignored' },
+  signatureAlgorithm: 'RS256',
+  policies: [
+    {
+      category: 'Identidad',
+      label: 'Identity',
+      status: 'zkp',
+      reason: 'Prueba de persona real sin revelar el documento.',
+      retentionDays: 0,
+    },
+    {
+      category: 'Ubicación',
+      label: 'Location',
+      status: 'required',
+      reason: 'Asigna el pedido al rider más cercano.',
+      retentionDays: 30,
+    },
+    {
+      category: 'Dispositivo',
+      label: 'Device Data',
+      status: 'ignored',
+      reason: 'No se solicita para completar el pedido.',
+      retentionDays: 0,
+    },
   ],
 };
 

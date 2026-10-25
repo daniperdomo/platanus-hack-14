@@ -1,26 +1,22 @@
 import { useMemo, type ComponentProps } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import {
+  POLICY_STATUS_LABEL,
+  type PolicyPoint,
+  type PolicyStatus,
+  type TrustGrade,
+} from '../constants/trustData';
 import { fonts, type ThemeColors, useTheme } from '../constants/theme';
 
-export type TrustScore = 'A' | 'B' | 'C' | 'F';
-
-export type DataStatus = 'zkp' | 'ignored' | 'required';
-
+export type TrustScore = TrustGrade;
+export type DataStatus = PolicyStatus;
 export type FeatherIconName = ComponentProps<typeof Feather>['name'];
-
-export type CollectedDataPoint = {
-  id: string;
-  label: string;
-  icon: FeatherIconName;
-  status: DataStatus;
-};
 
 export type CompanyData = {
   name: string;
-  trustScore: TrustScore;
-  dataPoints?: CollectedDataPoint[];
-  retentionDays?: number;
+  trustScore: TrustGrade;
+  policies?: PolicyPoint[];
   signatureAlgorithm?: string;
 };
 
@@ -28,17 +24,45 @@ type PrivacyDossierProps = {
   companyData: CompanyData;
 };
 
-const STATUS_LABEL: Record<DataStatus, string> = {
-  zkp: 'HASH ZKP',
-  ignored: 'IGNORADO',
-  required: 'REQUERIDO',
+const REQUIRED_COLOR = '#B42318';
+
+const ICON_FOR_CATEGORY: Record<string, FeatherIconName> = {
+  Identidad: 'user',
+  Contacto: 'mail',
+  Finanzas: 'credit-card',
+  Ubicación: 'map-pin',
+  Biometría: 'eye',
+  Comportamiento: 'activity',
+  Dispositivo: 'smartphone',
 };
 
-const DEFAULT_DATA_POINTS: CollectedDataPoint[] = [
-  { id: 'identity', label: 'Identity', icon: 'user', status: 'zkp' },
-  { id: 'location', label: 'Location', icon: 'map-pin', status: 'ignored' },
-  { id: 'device', label: 'Device Data', icon: 'smartphone', status: 'required' },
+const DEFAULT_POLICIES: PolicyPoint[] = [
+  {
+    category: 'Identidad',
+    label: 'Identity',
+    status: 'zkp',
+    reason: 'Prueba de persona real sin revelar el documento.',
+    retentionDays: 0,
+  },
+  {
+    category: 'Ubicación',
+    label: 'Location',
+    status: 'ignored',
+    reason: 'No se solicita para este servicio.',
+    retentionDays: 0,
+  },
+  {
+    category: 'Dispositivo',
+    label: 'Device Data',
+    status: 'required',
+    reason: 'Ata el acceso a este dispositivo.',
+    retentionDays: 30,
+  },
 ];
+
+function iconFor(point: PolicyPoint): FeatherIconName {
+  return ICON_FOR_CATEGORY[point.category] ?? 'circle';
+}
 
 export default function PrivacyDossier({ companyData }: PrivacyDossierProps) {
   const { colors, hairline } = useTheme();
@@ -46,14 +70,13 @@ export default function PrivacyDossier({ companyData }: PrivacyDossierProps) {
   const {
     name,
     trustScore,
-    dataPoints = DEFAULT_DATA_POINTS,
-    retentionDays = 0,
+    policies = DEFAULT_POLICIES,
     signatureAlgorithm = 'RS256',
   } = companyData;
 
-  const isCritical = trustScore === 'F';
+  const isCritical = trustScore === 'D';
   const scoreTint =
-    trustScore === 'F' ? colors.destructive : trustScore === 'C' ? colors.textMuted : colors.text;
+    trustScore === 'D' ? REQUIRED_COLOR : trustScore === 'C' ? colors.textMuted : colors.text;
 
   return (
     <View style={styles.container}>
@@ -63,6 +86,7 @@ export default function PrivacyDossier({ companyData }: PrivacyDossierProps) {
           <Text style={styles.companyName} numberOfLines={1}>
             {name}
           </Text>
+          <Text style={styles.crypto}>{`Firma ${signatureAlgorithm}`}</Text>
         </View>
 
         <View style={[styles.scoreBox, isCritical && styles.scoreBoxCritical]}>
@@ -73,33 +97,46 @@ export default function PrivacyDossier({ companyData }: PrivacyDossierProps) {
 
       <View style={styles.label}>
         <View style={styles.labelHeader}>
-          <Text style={styles.labelHeaderText}>Datos recopilados</Text>
+          <Text style={styles.labelHeaderText}>Política de datos</Text>
           <Text style={styles.labelHeaderText}>Estado</Text>
         </View>
 
-        {dataPoints.map((point, index) => (
+        {policies.map((point, index) => (
           <View
-            key={point.id}
-            style={[styles.row, index === dataPoints.length - 1 && styles.rowLast]}
+            key={`${point.category}-${point.label}-${index}`}
+            style={[styles.row, index === policies.length - 1 && styles.rowLast]}
           >
-            <View style={styles.rowLeft}>
-              <Feather name={point.icon} size={16} color={colors.textMuted} />
-              <Text style={styles.rowLabel}>{point.label}</Text>
+            <View style={styles.rowBody}>
+              <View style={styles.rowTop}>
+                <View style={styles.rowLeft}>
+                  <Feather name={iconFor(point)} size={16} color={colors.textMuted} />
+                  <View style={styles.rowCopy}>
+                    <Text style={styles.rowCategory}>{point.category}</Text>
+                    <Text style={styles.rowLabel}>{point.label}</Text>
+                  </View>
+                </View>
+                <Text
+                  style={[
+                    styles.rowStatus,
+                    { color: point.status === 'required' ? REQUIRED_COLOR : colors.text },
+                  ]}
+                >
+                  {`[ ${POLICY_STATUS_LABEL[point.status]} ]`}
+                </Text>
+              </View>
+              <Text style={styles.rowReason}>{point.reason}</Text>
+              <Text style={styles.rowRetention}>
+                {point.retentionDays === 0
+                  ? 'Retención: efímera · 0 días'
+                  : `Retención: ${point.retentionDays} días`}
+              </Text>
             </View>
-            <Text
-              style={[
-                styles.rowStatus,
-                { color: point.status === 'required' ? colors.destructive : colors.text },
-              ]}
-            >
-              {`[ ${STATUS_LABEL[point.status]} ]`}
-            </Text>
           </View>
         ))}
       </View>
 
       <Text style={styles.footer}>
-        {`Retención: ${retentionDays} días. Procesamiento efímero en RAM. Firma criptográfica: ${signatureAlgorithm}.`}
+        {`Procesamiento efímero en RAM. Firma criptográfica: ${signatureAlgorithm}.`}
       </Text>
     </View>
   );
@@ -138,6 +175,12 @@ function createStyles(colors: ThemeColors, hairline: number) {
       letterSpacing: -0.8,
       color: colors.text,
     },
+    crypto: {
+      fontFamily: fonts.mono,
+      fontSize: 11,
+      letterSpacing: 0.8,
+      color: colors.textMuted,
+    },
     scoreBox: {
       width: 64,
       height: 64,
@@ -148,7 +191,7 @@ function createStyles(colors: ThemeColors, hairline: number) {
       justifyContent: 'center',
     },
     scoreBoxCritical: {
-      borderColor: colors.destructive,
+      borderColor: REQUIRED_COLOR,
     },
     scoreValue: {
       fontFamily: fonts.bold,
@@ -183,9 +226,6 @@ function createStyles(colors: ThemeColors, hairline: number) {
       color: colors.textMuted,
     },
     row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
       paddingVertical: 14,
       borderBottomWidth: hairline,
       borderColor: colors.border,
@@ -193,11 +233,31 @@ function createStyles(colors: ThemeColors, hairline: number) {
     rowLast: {
       borderBottomWidth: 0,
     },
+    rowBody: {
+      gap: 6,
+    },
+    rowTop: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
     rowLeft: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: 12,
       flexShrink: 1,
+    },
+    rowCopy: {
+      gap: 2,
+      flexShrink: 1,
+    },
+    rowCategory: {
+      fontFamily: fonts.mono,
+      fontSize: 10,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: colors.textMuted,
     },
     rowLabel: {
       fontFamily: fonts.regular,
@@ -209,6 +269,20 @@ function createStyles(colors: ThemeColors, hairline: number) {
       fontSize: 12,
       letterSpacing: 1.2,
       fontVariant: ['tabular-nums'],
+    },
+    rowReason: {
+      fontFamily: fonts.regular,
+      fontSize: 13,
+      lineHeight: 18,
+      color: colors.textMuted,
+      paddingLeft: 28,
+    },
+    rowRetention: {
+      fontFamily: fonts.mono,
+      fontSize: 11,
+      letterSpacing: 0.4,
+      color: colors.textSubtle,
+      paddingLeft: 28,
     },
     footer: {
       marginTop: 16,

@@ -217,6 +217,41 @@ pre {
   letter-spacing: -0.02em;
 }
 
+.brand-logo--wordmark,
+.brand-logo__wordmark {
+  display: block;
+  height: 22px;
+  width: auto;
+}
+
+.brand-logo--mark,
+.brand-logo__mark {
+  display: block;
+  height: 26px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-logo--lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.brand-logo--mark-lg {
+  height: 36px;
+  width: auto;
+}
+
+.brand-logo--wordmark-lg {
+  height: 28px;
+}
+
+html[data-theme="dark"] img.brand-logo,
+html[data-theme="dark"] .brand-logo img {
+  filter: invert(1);
+}
+
 .logo-mark {
   width: 14px;
   height: 14px;
@@ -1203,6 +1238,12 @@ pre {
   justify-content: space-between;
 }
 
+.footer__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
 .footer__tagline {
   font-family: var(--font-mono);
   font-size: 0.82rem;
@@ -1418,10 +1459,59 @@ pre {
   text-overflow: ellipsis;
 }
 
+.dashboard__shell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+.dashboard-topbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.6rem;
+  height: 64px;
+  padding: 0 clamp(1.5rem, 4vw, 3.5rem);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  background: transparent;
+}
+
+.user-avatar:hover {
+  border-color: var(--text);
+}
+
+.user-avatar--lg {
+  width: 56px;
+  height: 56px;
+  font-size: 1.1rem;
+}
+
 .dashboard__main {
   padding: 3rem clamp(1.5rem, 4vw, 3.5rem);
   max-width: 1000px;
   width: 100%;
+}
+
+.dashboard__main--wide {
+  max-width: 1400px;
 }
 
 .empty-state {
@@ -1768,7 +1858,7 @@ pre {
 
 .analytics-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
   gap: 1rem;
   align-items: start;
   margin-bottom: 1rem;
@@ -1935,14 +2025,199 @@ pre {
 
 .company-detail {
   position: sticky;
-  top: 1.5rem;
+  top: 5rem;
   display: flex;
   flex-direction: column;
   gap: 1.4rem;
   padding: 1.5rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  background: var(--surface);
   font-size: 0.9rem;
+}
+
+.dossier-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dossier-head__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.dossier-head__overline,
+.dossier-head__crypto {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dossier-head h2 {
+  font-size: 1.6rem;
+  letter-spacing: -0.04em;
+}
+
+.dossier-grade {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dossier-grade.is-critical {
+  border-color: #B42318;
+}
+
+.dossier-grade__value {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.dossier-grade.is-critical .dossier-grade__value {
+  color: #B42318;
+}
+
+.dossier-grade__label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.dossier-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+.dossier-policy {
+  background: var(--bg);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dossier-policy__category {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dossier-policy__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.dossier-policy__top strong {
+  font-weight: 600;
+}
+
+.dossier-policy__status {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.dossier-policy__reason {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.dossier-policy__retention {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-subtle);
+}
+
+.scoring-method {
+  border-top: 1px solid var(--border);
+  padding-top: 0.4rem;
+}
+
+.scoring-method__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.scoring-method__chevron {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.scoring-method__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding-bottom: 0.4rem;
+}
+
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.4rem;
+}
+
+.profile-card__head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-card__head h2 {
+  font-size: 1.3rem;
+}
+
+.profile-card__meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+}
+
+.profile-card__meta dt {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
 }
 
 .company-detail__head {
@@ -2118,17 +2393,8 @@ pre {
 .zeroid-signin__logo {
   width: 18px;
   height: 18px;
-  border-radius: 4px;
-  background: var(--text);
-  position: relative;
-}
-
-.zeroid-signin__logo::after {
-  content: "";
-  position: absolute;
-  inset: 5px;
-  border-radius: 1px;
-  background: var(--bg);
+  display: block;
+  object-fit: contain;
 }
 
 /* ===== Prompt de consentimiento ===== */
@@ -2303,6 +2569,12 @@ pre {
   }
   .company-detail {
     position: static;
+  }
+  .dossier-grid {
+    grid-template-columns: 1fr;
+  }
+  .profile-card__meta {
+    grid-template-columns: 1fr;
   }
   .stats--four {
     grid-template-columns: repeat(2, 1fr);

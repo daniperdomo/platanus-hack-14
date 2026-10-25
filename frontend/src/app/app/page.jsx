@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 import ConsentPrompt from "@/components/zeroid/ConsentPrompt";
 import usePendingRequest from "@/components/zeroid/usePendingRequest";
 import { profile } from "@/lib/mockData";
@@ -10,9 +11,8 @@ export default function PhoneAppPage() {
 
   return (
     <main className="auth">
-      <Link href="/" className="nav__brand auth__brand">
-        <span className="logo-mark" />
-        ZeroID
+      <Link href="/" className="nav__brand auth__brand" aria-label="ZeroID">
+        <BrandLogo variant="lockup" />
       </Link>
 
       <div className="phone">
@@ -22,7 +22,7 @@ export default function PhoneAppPage() {
             <ConsentPrompt key={request.id} request={request} onRespond={answer} />
           ) : (
             <div className="phone__idle">
-              <span className="logo-mark" />
+              <BrandLogo variant="mark" className="brand-logo--mark-lg" />
               <h2>Hola, {profile.name.split(" ")[0]}</h2>
               <p className="text-muted">
                 No tienes solicitudes pendientes. Cuando un sitio te pida iniciar

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 export default function Nav() {
@@ -17,9 +18,8 @@ export default function Nav() {
   return (
     <header className={`nav${scrolled ? " is-scrolled" : ""}`} id="nav">
       <div className="container nav__inner">
-        <Link href="/" className="nav__brand">
-          <span className="logo-mark" />
-          ZeroID
+        <Link href="/" className="nav__brand" aria-label="ZeroID">
+          <BrandLogo variant="lockup" />
         </Link>
         <nav className="nav__links">
           <a href="/#personas">Personas</a>

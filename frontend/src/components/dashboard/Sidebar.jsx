@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import ThemeSwitcher from "@/components/ThemeSwitcher";
+import BrandLogo from "@/components/BrandLogo";
 
 const LINKS = [
   { href: "/dashboard/analytics", label: "Analytics" },
@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/dashboard/actividad", label: "Actividad" },
   { href: "/dashboard/datos", label: "Mis datos" },
   { href: "/dashboard/dispositivos", label: "Dispositivos" },
+  { href: "/dashboard/perfil", label: "Perfil" },
 ];
 
 export default function Sidebar({ session, onLogout }) {
@@ -18,9 +19,8 @@ export default function Sidebar({ session, onLogout }) {
 
   return (
     <aside className="sidebar">
-      <Link href="/" className="nav__brand sidebar__brand">
-        <span className="logo-mark" />
-        ZeroID
+      <Link href="/" className="nav__brand sidebar__brand" aria-label="ZeroID">
+        <BrandLogo variant="lockup" />
       </Link>
 
       <nav className="sidebar__nav">
@@ -36,7 +36,6 @@ export default function Sidebar({ session, onLogout }) {
       </nav>
 
       <div className="sidebar__footer">
-        <ThemeSwitcher />
         <span className="sidebar__email">{session.guest ? "Invitado" : session.email}</span>
         <button type="button" className="btn btn--secondary btn--sm" onClick={onLogout}>
           {session.guest ? "Salir" : "Cerrar sesión"}
