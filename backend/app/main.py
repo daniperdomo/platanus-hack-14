@@ -61,7 +61,7 @@ async def lifespan(_: FastAPI):
     init_db()
     if not settings.gemini_api_key:
         raise RuntimeError("GEMINI_API_KEY no está definida: no se pueden leer pasaportes.")
-    face._deepface().build_model(settings.face_model)
+    face.warm_up()
 
     loop = asyncio.get_running_loop()
     scheduler.add_job(

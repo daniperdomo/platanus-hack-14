@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 
 import psycopg
@@ -10,10 +11,14 @@ from app.db import database
 from app.services import face, hashing, passport
 from app.services.images import decode_image
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 DUPLICATE_DETAIL = "Ya estás registrado: esta persona ya tiene una credencial."
 NO_FACE_DETAIL = "No se detectó ningún rostro en la selfie. Asegúrate de tener buena iluminación."
+NO_HOLDER_PHOTO_DETAIL = (
+    "No encontramos la foto del titular en el pasaporte. Fotografía la página de datos completa."
+)
 
 
 class IngestResponse(BaseModel):
@@ -53,8 +58,11 @@ def ingest(
         if not face.faces_match(selfie_image, document_image):
             raise HTTPException(status_code=422, detail="La selfie no coincide con la foto del pasaporte.")
         embedding = face.embed_face(selfie_image)
-    except ValueError:
-        raise HTTPException(status_code=422, detail=NO_FACE_DETAIL)
+    except ValueError as error:
+        selfie_ok = face.has_face(selfie_image)
+        logger.warning("Sin rostro al verificar (selfie_ok=%s): %s", selfie_ok, error)
+        detail = NO_HOLDER_PHOTO_DETAIL if selfie_ok else NO_FACE_DETAIL
+        raise HTTPException(status_code=422, detail=detail)
 
     document_hash = hashing.hash_document(document_data.document_id)
     if database.document_exists(document_hash) or database.face_exists(embedding):

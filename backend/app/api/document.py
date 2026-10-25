@@ -3,17 +3,13 @@ from typing import Optional
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from app.api.ingest import DUPLICATE_DETAIL
+from app.api.ingest import DUPLICATE_DETAIL, NO_HOLDER_PHOTO_DETAIL
 from app.core.config import settings
 from app.db import database
 from app.services import face, hashing, passport
 from app.services.images import decode_image
 
 router = APIRouter()
-
-NO_HOLDER_PHOTO_DETAIL = (
-    "No encontramos la foto del titular en el pasaporte. Fotografía la página de datos completa."
-)
 
 
 class DocumentCheckResponse(BaseModel):

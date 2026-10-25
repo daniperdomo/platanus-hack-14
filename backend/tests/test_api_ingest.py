@@ -5,7 +5,7 @@ from datetime import date
 import psycopg
 import pytest
 
-from app.api.ingest import DUPLICATE_DETAIL, NO_FACE_DETAIL
+from app.api.ingest import DUPLICATE_DETAIL, NO_FACE_DETAIL, NO_HOLDER_PHOTO_DETAIL
 from app.core import security
 from app.db import database
 from app.services import face, passport
@@ -21,6 +21,7 @@ def pipeline(monkeypatch):
     state = {
         "document": ADULT,
         "faces_match": True,
+        "selfie_has_face": False,
         "document_exists": False,
         "face_exists": False,
         "saved": [],
@@ -46,6 +47,7 @@ def pipeline(monkeypatch):
     monkeypatch.setattr(passport, "read_passport", read_passport)
     monkeypatch.setattr(face, "faces_match", faces_match)
     monkeypatch.setattr(face, "embed_face", lambda _selfie: [0.1] * 512)
+    monkeypatch.setattr(face, "has_face", lambda _image: state["selfie_has_face"])
     monkeypatch.setattr(database, "document_exists", lambda _h: state["document_exists"])
     monkeypatch.setattr(database, "face_exists", lambda _e: state["face_exists"])
     monkeypatch.setattr(database, "save_identity", save_identity)
@@ -174,6 +176,14 @@ def test_no_face_detected_is_translated_422(client, jpeg_bytes, pipeline, deepfa
     response = post_ingest(client, jpeg_bytes)
     assert response.status_code == 422
     assert response.json()["detail"] == NO_FACE_DETAIL
+
+
+def test_missing_holder_photo_is_reported_as_passport_problem(client, jpeg_bytes, pipeline):
+    pipeline["faces_match"] = ValueError("Exception while processing img2_path")
+    pipeline["selfie_has_face"] = True
+    response = post_ingest(client, jpeg_bytes)
+    assert response.status_code == 422
+    assert response.json()["detail"] == NO_HOLDER_PHOTO_DETAIL
 
 
 def test_no_face_in_embedding_is_translated_422(client, jpeg_bytes, pipeline, monkeypatch):

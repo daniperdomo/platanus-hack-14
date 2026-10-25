@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
 
     face_model: str = "Facenet512"
+    # Tried in order until one finds a face.
+    face_detectors: str = "opencv,retinaface"
     face_embedding_dim: int = 512
     duplicate_face_distance: float = 0.3
     adult_age: int = 18
