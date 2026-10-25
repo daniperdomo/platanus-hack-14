@@ -104,6 +104,22 @@ function policy(
 
 const companies: Company[] = [
   {
+    id: 'yummy',
+    name: 'Yummy',
+    domain: 'yummy.cl',
+    category: 'Comercio',
+    trend: 0,
+    scores: { privacidad: 72, seguridad: 70, transparencia: 68, minimizacion: 74, derechos: 66 },
+    signatureAlgorithm: 'RS256',
+    incidents: [],
+    policies: [
+      policy('Identidad', 'Identity', 'zkp', 'Prueba de persona real sin revelar el documento.', 0),
+      policy('Ubicación', 'Location', 'required', 'Asigna el pedido al rider más cercano.', 30),
+      policy('Contacto', 'Teléfono', 'optional', 'Avisos de pedido, retrasos y contacto con el rider.', 30),
+      policy('Dispositivo', 'Device Data', 'ignored', 'No se solicita para completar el pedido.', 0),
+    ],
+  },
+  {
     id: 'apple',
     name: 'Apple',
     domain: 'apple.com',
@@ -368,6 +384,14 @@ export const TRUST_COMPANIES: TrustCompany[] = companies.map((company) => {
 export function companyById(id: string | undefined): TrustCompany | undefined {
   if (!id) return undefined;
   return TRUST_COMPANIES.find((company) => company.id === id);
+}
+
+export function companyForDomain(domain: string | undefined): TrustCompany | undefined {
+  const host = domain?.trim().toLowerCase().replace(/^www\./, '');
+  if (!host) return undefined;
+  return TRUST_COMPANIES.find(
+    (company) => host === company.domain || host.endsWith(`.${company.domain}`)
+  );
 }
 
 export const lastScan = '2026-10-24 06:00';

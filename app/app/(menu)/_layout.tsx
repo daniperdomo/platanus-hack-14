@@ -38,11 +38,20 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="dashboard"
+        name="sitios"
         options={{
           title: 'Bóveda',
           tabBarIcon: ({ focused, size }) => (
             <Feather name="lock" size={size} color={focused ? colors.text : colors.textMuted} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Inbox',
+          tabBarIcon: ({ focused, size }) => (
+            <Feather name="bell" size={size} color={focused ? colors.text : colors.textMuted} />
           ),
         }}
       />

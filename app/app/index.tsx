@@ -1,196 +1,211 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import BrandLogo from '../components/BrandLogo';
 import ThemeSwitcher from '../components/ThemeSwitcher';
-import ZeroLoader from '../components/ZeroLoader';
+import { claimPairing, fetchRequest, markPaired } from '../lib/api';
+import { confirmIdentity } from '../lib/confirm';
+import { decryptJson, fromBase64Url } from '../lib/crypto';
+import { setPending } from '../lib/pending';
+import { loadWallet, saveWallet, type PrivateJwk, type Wallet } from '../lib/wallet';
 import { type ThemeColors, fonts, radius, useTheme } from '../constants/theme';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
-const INGEST_URL = `${API_URL}/ingest`;
+const { width, height } = Dimensions.get('window');
+const FRAME_SIZE = width * 0.72;
+const CORNER = 28;
+const CORNER_WIDTH = 2;
 
-const DEFAULT_ERROR = 'No pudimos validar tu identidad. Intenta de nuevo.';
-const NETWORK_ERROR = 'No hay conexión con el servidor. Revisa tu red e intenta de nuevo.';
-
-type Step = 'SCAN_PASSPORT' | 'SCAN_FACE' | 'PROCESSING';
-
-const { width } = Dimensions.get('window');
-const PASSPORT_FRAME_WIDTH = width * 0.86;
-const PASSPORT_FRAME_HEIGHT = PASSPORT_FRAME_WIDTH / 1.42;
-const FACE_FRAME_SIZE = width * 0.68;
-const FRAME_BORDER = 'rgba(255, 255, 255, 0.2)';
-
-const SCAN_COPY: Record<Exclude<Step, 'PROCESSING'>, { overline: string; title: string; subtitle: string }> = {
-  SCAN_PASSPORT: {
-    overline: 'Paso 1 de 2 · Pasaporte',
-    title: 'Encuadra la página de datos',
-    subtitle: 'Las dos líneas inferiores (MRZ) deben verse nítidas',
+const FEATURES: { icon: keyof typeof Feather.glyphMap; title: string; description: string }[] = [
+  {
+    icon: 'lock',
+    title: 'Bóveda cifrada',
+    description: 'Tus datos se descifran solo en este teléfono.',
   },
-  SCAN_FACE: {
-    overline: 'Paso 2 de 2 · Rostro',
-    title: 'Centra tu rostro en el círculo',
-    subtitle: 'Buena luz, sin lentes ni gorra',
+  {
+    icon: 'shield',
+    title: 'Tú apruebas',
+    description: 'Cada inicio de sesión te pide confirmación.',
   },
+  {
+    icon: 'check-square',
+    title: 'Datos justos',
+    description: 'Ves qué pide el sitio, para qué y por cuánto tiempo.',
+  },
+];
+
+type PairingPayload = {
+  token: string;
+  privateJwk: PrivateJwk;
+  vaultKey: string;
+  vaultCiphertext: string;
 };
-
-function toUploadFile(uri: string) {
-  return { uri, name: 'image.jpg', type: 'image/jpeg' } as unknown as Blob;
-}
-
-async function submitVerification(passportUri: string, faceUri: string, signal: AbortSignal) {
-  const body = new FormData();
-  body.append('document', toUploadFile(passportUri));
-  body.append('selfie', toUploadFile(faceUri));
-
-  let response: Response;
-  try {
-    response = await fetch(INGEST_URL, { method: 'POST', body, signal });
-  } catch (error) {
-    if (signal.aborted) throw error;
-    throw new Error(NETWORK_ERROR);
-  }
-
-  if (response.status !== 200) {
-    const payload = await response.json().catch(() => null);
-    throw new Error(typeof payload?.detail === 'string' ? payload.detail : DEFAULT_ERROR);
-  }
-}
 
 export default function OnboardingScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [step, setStep] = useState<Step>('SCAN_PASSPORT');
-  const [passportUri, setPassportUri] = useState<string | null>(null);
-  const [faceUri, setFaceUri] = useState<string | null>(null);
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const cameraRef = useRef<CameraView>(null);
+  const [cameraMode, setCameraMode] = useState<null | 'pair' | 'approve'>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
+  const scanning = useRef(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ scan?: string }>();
   const { colors, type, ui, scheme, hairline } = useTheme();
   const styles = useMemo(() => createStyles(colors, hairline), [colors, hairline]);
 
-  const resetScan = useCallback(() => {
-    setPassportUri(null);
-    setFaceUri(null);
-    setIsCameraReady(false);
-    setStep('SCAN_PASSPORT');
+  useEffect(() => {
+    loadWallet()
+      .then(setWallet)
+      .finally(() => setReady(true));
   }, []);
 
-  useEffect(() => {
-    if (!isLoading) return;
+  const [handledScan, setHandledScan] = useState<string | undefined>();
+  if (wallet && params.scan && params.scan !== handledScan) {
+    setHandledScan(params.scan);
+    setCameraMode('approve');
+  }
 
-    const timer = setTimeout(async () => {
-      if (!permission?.granted) {
-        await requestPermission();
-      }
-      resetScan();
-      setIsCameraActive(true);
-      setIsLoading(false);
-    }, 2000);
+  const startCamera = async (mode: 'pair' | 'approve') => {
+    if (!permission?.granted) {
+      const next = await requestPermission();
+      if (!next.granted) return;
+    }
+    scanning.current = false;
+    setError('');
+    setCameraMode(mode);
+  };
 
-    return () => clearTimeout(timer);
-  }, [isLoading, permission?.granted, requestPermission, resetScan]);
-
-  useEffect(() => {
-    if (step !== 'PROCESSING' || !passportUri || !faceUri) return;
-
-    const controller = new AbortController();
-    submitVerification(passportUri, faceUri, controller.signal)
-      .then(async () => {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace('/dashboard');
-      })
-      .catch(async (error: unknown) => {
-        if (controller.signal.aborted) return;
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Verificación fallida', error instanceof Error ? error.message : DEFAULT_ERROR);
-        resetScan();
-      });
-
-    return () => controller.abort();
-  }, [step, passportUri, faceUri, router, resetScan]);
-
-  const handleCapture = async () => {
-    if (!cameraRef.current || !isCameraReady || isCapturing) return;
-
-    setIsCapturing(true);
+  const onBarcodeScanned = async ({ data }: { data: string }) => {
+    if (scanning.current) return;
+    scanning.current = true;
+    setError('');
     try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const photo = await cameraRef.current.takePictureAsync({ base64: false, quality: 0.7 });
-      if (!photo?.uri) throw new Error('Sin imagen');
-
-      if (step === 'SCAN_PASSPORT') {
-        setPassportUri(photo.uri);
-        setIsCameraReady(false);
-        setStep('SCAN_FACE');
-      } else if (step === 'SCAN_FACE') {
-        setFaceUri(photo.uri);
-        setStep('PROCESSING');
+      const url = new URL(data);
+      if (url.protocol !== 'zeroid:') throw new Error('Ese código no es de ZeroID.');
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (url.hostname === 'pair') {
+        await pairPhone(url);
+        return;
       }
-    } catch {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Captura fallida', 'No pudimos tomar la foto. Intenta de nuevo.');
-    } finally {
-      setIsCapturing(false);
+      if (url.hostname === 'approve') {
+        const requestId = url.searchParams.get('request');
+        if (!requestId) throw new Error('El código no trae una solicitud.');
+        setPending(await fetchRequest(requestId));
+        setCameraMode(null);
+        router.push('/consent');
+        return;
+      }
+      throw new Error('Ese código no es de ZeroID.');
+    } catch (err) {
+      // Closing the camera keeps the same QR from being read again in a loop.
+      setStatus('');
+      setCameraMode(null);
+      setError(err instanceof Error ? err.message : 'No pudimos leer el código.');
     }
   };
 
-  const handleStart = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsLoading(true);
-  };
-
-  const closeCamera = () => {
-    resetScan();
-    setIsCameraActive(false);
-  };
-
-  if (isLoading || step === 'PROCESSING') {
-    return (
-      <>
-        <StatusBar style="light" />
-        <ZeroLoader />
-      </>
+  const pairPhone = async (url: URL) => {
+    const id = url.searchParams.get('id');
+    const key = url.searchParams.get('key');
+    if (!id || !key) throw new Error('El código de vinculación está incompleto.');
+    const confirmed = await confirmIdentity();
+    if (!confirmed) throw new Error('Hace falta confirmar tu identidad para vincular.');
+    setStatus('Vinculando este teléfono…');
+    const claimed = await claimPairing(id);
+    const decoded = decryptJson<PairingPayload>(fromBase64Url(key), claimed.payload);
+    const vault = decryptJson<Record<string, string>>(
+      fromBase64Url(decoded.vaultKey),
+      decoded.vaultCiphertext
     );
-  }
+    const next = {
+      token: decoded.token,
+      privateJwk: decoded.privateJwk,
+      vaultKey: decoded.vaultKey,
+      vault,
+    };
+    await saveWallet(next);
+    await markPaired(decoded.token).catch(() => undefined);
+    setWallet(next);
+    setStatus('');
+    setCameraMode(null);
+    router.replace('/sitios');
+  };
 
-  if (!isCameraActive) {
+  if (!cameraMode) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
-        <View style={styles.topBar}>
+        <View style={styles.brandRow}>
+          <View style={styles.brand}>
+            <View style={styles.logoMark} />
+            <Text style={styles.brandText}>ZeroID</Text>
+          </View>
           <ThemeSwitcher />
         </View>
 
         <View style={styles.hero}>
-          <BrandLogo variant="lockup" height={36} />
-          <Text style={styles.headline}>Zero-Retention Identity</Text>
-          <Text style={styles.subhead}>Demuestra que eres real. Sin revelar quién eres.</Text>
+          <Text style={type.overline}>
+            {wallet ? 'Teléfono vinculado' : 'Vincula tu ZeroID'}
+          </Text>
+          <Text style={[type.display, styles.heroTitle]}>
+            {wallet ? 'Listo para confirmar.' : 'Escanea el código del registro.'}{' '}
+            <Text style={styles.heroTitleMuted}>
+              {wallet ? 'Las solicitudes llegan aquí.' : 'La credencial queda cifrada en el teléfono.'}
+            </Text>
+          </Text>
+
+          <View style={styles.featureList}>
+            {FEATURES.map((feature, index) => (
+              <View
+                key={feature.title}
+                style={[styles.featureRow, index > 0 && styles.featureRowDivider]}
+              >
+                <View style={styles.featureIcon}>
+                  <Feather name={feature.icon} size={16} color={colors.text} />
+                </View>
+                <View style={styles.featureCopy}>
+                  <Text style={styles.featureTitle}>{feature.title}</Text>
+                  <Text style={styles.featureDescription}>{feature.description}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.scanButton}
-          onPress={handleStart}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Escanear pasaporte"
-        >
-          <Text style={styles.scanButtonText}>Escanear Pasaporte</Text>
-        </TouchableOpacity>
+        <View style={styles.cta}>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <TouchableOpacity
+            style={ui.primaryButton}
+            onPress={() => startCamera(wallet ? 'approve' : 'pair')}
+            activeOpacity={0.85}
+            disabled={!ready}
+          >
+            <Feather name="maximize" size={18} color={colors.inverse} />
+            <Text style={ui.primaryButtonText}>
+              {wallet ? 'Escanear QR de un sitio' : 'Escanear QR de vinculación'}
+            </Text>
+          </TouchableOpacity>
+
+          {wallet ? (
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => router.push('/sitios')}
+              activeOpacity={0.6}
+            >
+              <Text style={styles.linkButtonText}>Ver mis accesos activos</Text>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
     );
   }
-
-  const facing = step === 'SCAN_FACE' ? 'front' : 'back';
-  const copy = SCAN_COPY[step];
 
   return (
     <View style={styles.cameraContainer}>
@@ -198,38 +213,40 @@ export default function OnboardingScreen() {
 
       {permission?.granted ? (
         <CameraView
-          key={facing}
-          ref={cameraRef}
           style={StyleSheet.absoluteFill}
-          facing={facing}
-          onCameraReady={() => setIsCameraReady(true)}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onBarcodeScanned={onBarcodeScanned}
         >
-          <View style={[styles.cameraOverlay, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40 }]}>
-            <View style={styles.cameraHeader}>
-              <Text style={type.overline}>{copy.overline}</Text>
-              <TouchableOpacity style={styles.iconButton} onPress={closeCamera} activeOpacity={0.7}>
-                <Feather name="x" size={20} color={colors.text} />
+          <View style={styles.cameraOverlay}>
+            <View style={[styles.cameraHeader, { paddingTop: insets.top + 12 }]}>
+              <Text style={styles.cameraOverline}>
+                {cameraMode === 'pair' ? 'Vincular teléfono' : 'Aprobar un sitio'}
+              </Text>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => setCameraMode(null)}
+                activeOpacity={0.7}
+              >
+                <Feather name="x" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.scanArea}>
-              <View style={step === 'SCAN_FACE' ? styles.faceFrame : styles.passportFrame} />
-              <View style={styles.instructions}>
-                <Text style={styles.instructionsTitle}>{copy.title}</Text>
-                <Text style={styles.instructionsSubtitle}>{copy.subtitle}</Text>
-              </View>
+            <View style={styles.scanFrame}>
+              <View style={[styles.corner, styles.cornerTopLeft]} />
+              <View style={[styles.corner, styles.cornerTopRight]} />
+              <View style={[styles.corner, styles.cornerBottomLeft]} />
+              <View style={[styles.corner, styles.cornerBottomRight]} />
             </View>
 
-            <TouchableOpacity
-              style={[styles.captureButton, (!isCameraReady || isCapturing) && styles.captureButtonDisabled]}
-              onPress={handleCapture}
-              disabled={!isCameraReady || isCapturing}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={step === 'SCAN_FACE' ? 'Tomar selfie' : 'Fotografiar pasaporte'}
-            >
-              <View style={styles.captureButtonInner} />
-            </TouchableOpacity>
+            <View style={styles.instructions}>
+              <Text style={styles.instructionsTitle}>
+                {cameraMode === 'pair' ? 'Apunta al QR del registro' : 'Apunta al QR del sitio'}
+              </Text>
+              <Text style={styles.instructionsSubtitle}>
+                {error || status || 'Lo leemos en cuanto esté dentro del marco'}
+              </Text>
+            </View>
           </View>
         </CameraView>
       ) : (
@@ -239,8 +256,8 @@ export default function OnboardingScreen() {
           </View>
           <Text style={[type.title, styles.permissionTitle]}>Acceso a la cámara</Text>
           <Text style={[type.body, styles.permissionText]}>
-            Necesitamos la cámara para fotografiar tu pasaporte y tomar una selfie. Las fotos solo se
-            usan para validar tu identidad.
+            Necesitamos la cámara para escanear códigos QR de login. Las imágenes nunca salen de tu
+            dispositivo.
           </Text>
           <TouchableOpacity
             style={[ui.primaryButton, styles.permissionButton]}
@@ -249,7 +266,11 @@ export default function OnboardingScreen() {
           >
             <Text style={ui.primaryButtonText}>Permitir cámara</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.linkButton} onPress={closeCamera} activeOpacity={0.6}>
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => setCameraMode(null)}
+            activeOpacity={0.6}
+          >
             <Text style={styles.linkButtonText}>Volver</Text>
           </TouchableOpacity>
         </View>
@@ -262,45 +283,85 @@ function createStyles(colors: ThemeColors, hairline: number) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#0D0E11',
+      backgroundColor: colors.background,
       paddingHorizontal: 24,
     },
-    topBar: {
-      alignItems: 'flex-end',
+    brandRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    brand: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    logoMark: {
+      width: 14,
+      height: 14,
+      borderRadius: 3,
+      backgroundColor: colors.text,
+    },
+    brandText: {
+      fontFamily: fonts.bold,
+      fontSize: 17,
+      letterSpacing: -0.3,
+      color: colors.text,
     },
     hero: {
       flex: 1,
-      alignItems: 'center',
       justifyContent: 'center',
+    },
+    heroTitle: {
+      marginTop: 16,
+      marginBottom: 40,
+    },
+    heroTitleMuted: {
+      color: colors.textSubtle,
+    },
+    featureList: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 24,
+    },
+    featureRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 16,
+      paddingVertical: 20,
     },
-    headline: {
-      fontFamily: fonts.bold,
-      fontSize: 28,
-      letterSpacing: -0.6,
-      color: '#FFFFFF',
-      textAlign: 'center',
+    featureRowDivider: {
+      borderTopWidth: hairline,
+      borderTopColor: colors.border,
     },
-    subhead: {
-      fontFamily: fonts.regular,
-      fontSize: 15,
-      lineHeight: 22,
-      color: '#8A8F9C',
-      textAlign: 'center',
-    },
-    scanButton: {
-      height: 52,
+    featureIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: '#FFFFFF',
-      borderRadius: 6,
-      elevation: 0,
-      shadowOpacity: 0,
     },
-    scanButtonText: {
+    featureCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    featureTitle: {
       fontFamily: fonts.semibold,
-      fontSize: 16,
-      color: '#111111',
+      fontSize: 15,
+      color: colors.text,
+    },
+    featureDescription: {
+      fontFamily: fonts.regular,
+      fontSize: 13,
+      lineHeight: 18,
+      color: colors.textMuted,
+    },
+    cta: {
+      gap: 8,
     },
     linkButton: {
       flexDirection: 'row',
@@ -314,54 +375,89 @@ function createStyles(colors: ThemeColors, hairline: number) {
       fontSize: 14,
       color: colors.textMuted,
     },
+    errorText: {
+      fontFamily: fonts.regular,
+      color: colors.destructive,
+      fontSize: 14,
+      textAlign: 'center',
+    },
     cameraContainer: {
       flex: 1,
       backgroundColor: '#0D0E11',
     },
     cameraOverlay: {
       flex: 1,
-      alignItems: 'center',
       backgroundColor: 'rgba(13, 14, 17, 0.45)',
     },
     cameraHeader: {
-      alignSelf: 'stretch',
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 24,
+    },
+    cameraOverline: {
+      fontFamily: fonts.semibold,
+      fontSize: 11,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      color: 'rgba(255, 255, 255, 0.7)',
     },
     iconButton: {
       width: 44,
       height: 44,
       borderRadius: radius.pill,
       borderWidth: hairline,
-      borderColor: colors.border,
-      backgroundColor: colors.overlay,
+      borderColor: 'rgba(255, 255, 255, 0.3)',
+      backgroundColor: 'rgba(13, 14, 17, 0.6)',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    scanArea: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 32,
+    scanFrame: {
+      position: 'absolute',
+      top: height * 0.24,
+      left: (width - FRAME_SIZE) / 2,
+      width: FRAME_SIZE,
+      height: FRAME_SIZE,
     },
-    passportFrame: {
-      width: PASSPORT_FRAME_WIDTH,
-      height: PASSPORT_FRAME_HEIGHT,
-      borderRadius: radius.md,
-      borderWidth: hairline,
-      borderColor: FRAME_BORDER,
+    corner: {
+      position: 'absolute',
+      width: CORNER,
+      height: CORNER,
+      borderColor: '#FFFFFF',
     },
-    faceFrame: {
-      width: FACE_FRAME_SIZE,
-      height: FACE_FRAME_SIZE,
-      borderRadius: FACE_FRAME_SIZE / 2,
-      borderWidth: hairline,
-      borderColor: FRAME_BORDER,
+    cornerTopLeft: {
+      top: 0,
+      left: 0,
+      borderTopWidth: CORNER_WIDTH,
+      borderLeftWidth: CORNER_WIDTH,
+      borderTopLeftRadius: radius.md,
+    },
+    cornerTopRight: {
+      top: 0,
+      right: 0,
+      borderTopWidth: CORNER_WIDTH,
+      borderRightWidth: CORNER_WIDTH,
+      borderTopRightRadius: radius.md,
+    },
+    cornerBottomLeft: {
+      bottom: 0,
+      left: 0,
+      borderBottomWidth: CORNER_WIDTH,
+      borderLeftWidth: CORNER_WIDTH,
+      borderBottomLeftRadius: radius.md,
+    },
+    cornerBottomRight: {
+      bottom: 0,
+      right: 0,
+      borderBottomWidth: CORNER_WIDTH,
+      borderRightWidth: CORNER_WIDTH,
+      borderBottomRightRadius: radius.md,
     },
     instructions: {
-      paddingHorizontal: 24,
+      position: 'absolute',
+      top: height * 0.24 + FRAME_SIZE + 32,
+      left: 24,
+      right: 24,
       alignItems: 'center',
       gap: 6,
     },
@@ -369,39 +465,19 @@ function createStyles(colors: ThemeColors, hairline: number) {
       fontFamily: fonts.semibold,
       fontSize: 17,
       letterSpacing: -0.2,
-      color: colors.text,
+      color: '#FFFFFF',
     },
     instructionsSubtitle: {
       fontFamily: fonts.regular,
       fontSize: 13,
-      color: colors.textMuted,
+      color: 'rgba(255, 255, 255, 0.7)',
       textAlign: 'center',
-    },
-    captureButton: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
-      borderWidth: 2,
-      borderColor: colors.text,
-      backgroundColor: 'transparent',
-      alignItems: 'center',
-      justifyContent: 'center',
-      elevation: 0,
-      shadowOpacity: 0,
-    },
-    captureButtonDisabled: {
-      opacity: 0.4,
-    },
-    captureButtonInner: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
-      backgroundColor: colors.text,
     },
     permission: {
       flex: 1,
       justifyContent: 'center',
       paddingHorizontal: 24,
+      backgroundColor: colors.background,
     },
     permissionIcon: {
       width: 48,

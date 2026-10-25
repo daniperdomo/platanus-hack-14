@@ -1,43 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { collectSession, loginAccount } from "@/lib/api";
 import { startGuestSession, startSession } from "@/lib/session";
+import { decryptJson, unwrapVaultKey } from "@/lib/vaultCrypto";
 import BrandLogo from "@/components/BrandLogo";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [step, setStep] = useState("email");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [step, setStep] = useState("form");
   const [message, setMessage] = useState("");
+  const poll = useRef(null);
 
-  function onSubmit(event) {
+  useEffect(() => () => clearInterval(poll.current), []);
+
+  async function onSubmit(event) {
     event.preventDefault();
-    if (!EMAIL_PATTERN.test(email.trim())) {
-      setMessage("Ingresa un correo válido.");
-      return;
-    }
     setMessage("");
-    setStep("waiting");
-  }
-
-  function approve() {
-    startSession(email.trim());
-    router.push("/dashboard");
+    try {
+      const created = await loginAccount({ username: username.trim(), password });
+      setStep("waiting");
+      const started = Date.now();
+      poll.current = setInterval(async () => {
+        try {
+          const result = await collectSession(created.request_id);
+          if (result.status === "rejected") {
+            clearInterval(poll.current);
+            setStep("form");
+            setMessage("Rechazaste el inicio de sesión desde el teléfono.");
+            return;
+          }
+          if (result.status !== "delivered") {
+            if (Date.now() - started > created.expires_in * 1000) {
+              clearInterval(poll.current);
+              setStep("form");
+              setMessage("La solicitud expiró. Vuelve a intentarlo.");
+            }
+            return;
+          }
+          clearInterval(poll.current);
+          const vaultKey = await unwrapVaultKey(
+            password,
+            result.wrapped_key,
+            result.wrap_salt,
+            result.wrap_iterations
+          );
+          const vault = await decryptJson(vaultKey, result.vault_ciphertext);
+          setPassword("");
+          startSession({ username: result.username, token: result.session_token, vault });
+          router.push("/dashboard");
+        } catch (err) {
+          clearInterval(poll.current);
+          setStep("form");
+          setMessage(err?.message ?? "No pudimos abrir la sesión.");
+        }
+      }, 2000);
+    } catch (err) {
+      setMessage(err?.message ?? "No pudimos iniciar sesión.");
+    }
   }
 
   function enterAsGuest() {
     startGuestSession();
     router.push("/dashboard");
-  }
-
-  function reject() {
-    setStep("email");
-    setMessage("Solicitud rechazada desde tu teléfono.");
   }
 
   return (
@@ -49,21 +79,30 @@ export default function LoginPage() {
         <ThemeSwitcher />
       </div>
 
-      {step === "email" ? (
+      {step === "form" ? (
         <div className="auth-card">
           <h1 className="auth-card__title">Inicia sesión</h1>
           <p className="text-muted auth-card__lead">
-            Te enviaremos una solicitud a la app ZeroID de tu teléfono para que
-            confirmes que eres tú.
+            Después de tu contraseña, la app ZeroID de tu teléfono te pide
+            confirmar que eres tú.
           </p>
           <form className="auth-form" onSubmit={onSubmit} noValidate>
             <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="tu@correo.com"
-              aria-label="Correo electrónico"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Usuario"
+              aria-label="Usuario"
+              autoCapitalize="none"
+              autoComplete="username"
               autoFocus
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Contraseña"
+              aria-label="Contraseña"
+              autoComplete="current-password"
             />
             <button type="submit" className="btn btn--primary">
               Continuar
@@ -71,6 +110,9 @@ export default function LoginPage() {
           </form>
           <p className="cta-status is-error" role="status" aria-live="polite">
             {message}
+          </p>
+          <p className="text-muted">
+            ¿Primera vez? <Link href="/registrar">Crea tu ZeroID</Link>
           </p>
           <div className="auth-divider">o</div>
           <button
@@ -82,44 +124,23 @@ export default function LoginPage() {
           </button>
         </div>
       ) : (
-        <div className="auth-waiting">
-          <div className="auth-card">
-            <span className="pulse-dot" />
-            <h1 className="auth-card__title">Revisa tu teléfono</h1>
-            <p className="text-muted auth-card__lead">
-              Enviamos una solicitud de inicio de sesión a la app ZeroID
-              asociada a <strong>{email}</strong>.
-            </p>
-            <button
-              type="button"
-              className="btn btn--secondary btn--sm"
-              onClick={() => setStep("email")}
-            >
-              Usar otro correo
-            </button>
-          </div>
-
-          <div className="phone" aria-label="Simulación de la app del teléfono">
-            <span className="phone__label">Simulación · App ZeroID</span>
-            <div className="phone__screen">
-              <BrandLogo variant="mark" className="brand-logo--mark-lg" />
-              <h2>¿Eres tú quien intenta iniciar sesión?</h2>
-              <dl className="phone__meta">
-                <dt>Sitio</dt>
-                <dd>Dashboard ZeroID</dd>
-                <dt>Dispositivo</dt>
-                <dd>Navegador web</dd>
-                <dt>Ubicación</dt>
-                <dd>Caracas, VE</dd>
-              </dl>
-              <button type="button" className="btn btn--primary" onClick={approve}>
-                Sí, soy yo
-              </button>
-              <button type="button" className="btn btn--secondary" onClick={reject}>
-                No soy yo
-              </button>
-            </div>
-          </div>
+        <div className="auth-card">
+          <span className="pulse-dot" />
+          <h1 className="auth-card__title">Revisa tu teléfono</h1>
+          <p className="text-muted auth-card__lead">
+            Abre la app ZeroID. Te va a preguntar si eres tú quien intenta entrar
+            al dashboard de <strong>{username}</strong>.
+          </p>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => {
+              clearInterval(poll.current);
+              setStep("form");
+            }}
+          >
+            Cancelar
+          </button>
         </div>
       )}
     </main>

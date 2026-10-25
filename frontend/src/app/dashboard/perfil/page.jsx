@@ -10,7 +10,7 @@ export default function ProfilePage() {
   const session = useSession();
   const { profile } = useVault();
   const name = profile?.name || (session?.guest ? "Invitado" : "Usuario");
-  const email = session?.guest ? "Sesión de invitado" : session?.email;
+  const email = session?.guest ? "Sesión de invitado" : session?.username;
   const initial = name.charAt(0).toUpperCase();
 
   function logout() {

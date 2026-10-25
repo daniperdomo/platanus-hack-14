@@ -36,7 +36,7 @@ export default function Sidebar({ session, onLogout }) {
       </nav>
 
       <div className="sidebar__footer">
-        <span className="sidebar__email">{session.guest ? "Invitado" : session.email}</span>
+        <span className="sidebar__email">{session.guest ? "Invitado" : session.username}</span>
         <button type="button" className="btn btn--secondary btn--sm" onClick={onLogout}>
           {session.guest ? "Salir" : "Cerrar sesión"}
         </button>

@@ -7,8 +7,8 @@ import useVault from "./useVault";
 export default function UserAvatar() {
   const session = useSession();
   const { profile } = useVault();
-  const label = profile?.name || (session?.guest ? "Invitado" : session?.email) || "Perfil";
-  const initial = (profile?.name || session?.email || "Z").charAt(0).toUpperCase();
+  const label = profile?.name || (session?.guest ? "Invitado" : session?.username) || "Perfil";
+  const initial = (profile?.name || session?.username || "Z").charAt(0).toUpperCase();
 
   return (
     <Link
