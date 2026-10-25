@@ -45,10 +45,8 @@ export default function DashboardLayout({ children }) {
           <main className={`dashboard__main w-full p-4 md:p-8${wide ? " dashboard__main--wide" : ""}`}>{children}</main>
         </div>
         {request && !session.guest && (
-          <div className="modal" role="dialog" aria-modal="true">
-            <div className="modal__card">
-              <ConsentPrompt key={request.id} request={request} onRespond={answer} />
-            </div>
+          <div className="auth-page-overlay" role="dialog" aria-modal="true" aria-label="Autorización ZeroID">
+            <ConsentPrompt key={request.id} request={request} onRespond={answer} />
           </div>
         )}
       </div>

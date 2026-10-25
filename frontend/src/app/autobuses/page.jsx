@@ -1,32 +1,30 @@
 "use client";
 
 /**
- * Sitio cliente que integra el SDK público (`/sdk/zeroid.js`):
- * popup → /conectar → aprobación en la app móvil → canje en /api/expreso/sesion.
+ * Sitio cliente de Expreso Caribe. El botón de ZeroID abre la autorización
+ * a pantalla completa y, al firmar, recibe solo los datos que el pasajero dejó activos.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import SignInButton from "@/components/zeroid/SignInButton";
+import ConsentPrompt from "@/components/zeroid/ConsentPrompt";
+import { getClient } from "@/lib/api";
 import { DATA_FIELDS } from "@/lib/mockData";
 
 const SESSION_KEY = "expreso.session";
 const CLIENT_ID = process.env.NEXT_PUBLIC_EXPRESO_CLIENT_ID;
-const SCOPES = ["persona_real_unica", "mayor_de_edad"];
-const SDK_ERRORS = {
-  rejected: "Rechazaste el inicio de sesión desde tu teléfono.",
-  closed: "Cerraste la ventana de ZeroID antes de terminar.",
-  expired: "Pasaron 5 minutos sin respuesta. Vuelve a intentarlo.",
-  popup_blocked: "Tu navegador bloqueó la ventana de ZeroID. Permite las ventanas emergentes.",
-};
+const PUBLIC_DOMAIN = "expresocaribe.com";
 
-function loadSdk() {
-  if (window.ZeroID) return Promise.resolve(window.ZeroID);
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "/sdk/zeroid.js";
-    script.onload = () => resolve(window.ZeroID);
-    script.onerror = () => reject(new Error("No pudimos cargar el SDK de ZeroID."));
-    document.head.appendChild(script);
-  });
+function publicDomain(origins) {
+  for (const origin of origins ?? []) {
+    try {
+      const host = new URL(origin).hostname.replace(/^www\./, "");
+      if (host && host !== "localhost") return host;
+    } catch {
+      /* un origen mal formado no identifica a la empresa */
+    }
+  }
+  return PUBLIC_DOMAIN;
 }
 
 const REQUIRED = [
@@ -72,31 +70,10 @@ const TRIPS = [
   { id: 4, from: "Caracas", to: "Puerto La Cruz", time: "22:00", duration: "5 h 00 min", price: 18 },
 ];
 
-function asFields(items, required) {
-  return items.map((item) => ({
-    field: item.field,
-    purpose: item.purpose,
-    retention: item.retention,
-    required,
-  }));
-}
-
-async function exchange(requestId) {
-  const response = await fetch("/api/expreso/sesion", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requestId }),
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(typeof body.detail === "string" ? body.detail : "No pudimos completar el acceso.");
-  }
-  return body;
-}
-
 export default function AutobusesPage() {
   const [session, setSession] = useState(null);
   const [modal, setModal] = useState(null);
+  const [consent, setConsent] = useState(null);
   const [reserved, setReserved] = useState([]);
   const [waitError, setWaitError] = useState("");
   const attempt = useRef(0);
@@ -104,11 +81,6 @@ export default function AutobusesPage() {
   useEffect(() => {
     const raw = window.localStorage.getItem(SESSION_KEY);
     if (raw) setSession(JSON.parse(raw));
-    loadSdk()
-      .then((sdk) => {
-        if (CLIENT_ID) sdk.init({ clientId: CLIENT_ID, scopes: SCOPES });
-      })
-      .catch(() => undefined);
   }, []);
 
   async function signInWithZeroId() {
@@ -119,24 +91,45 @@ export default function AutobusesPage() {
       setModal("rejected");
       return;
     }
-    setModal("waiting");
+
+    let name = "Expreso Caribe";
+    let domain = PUBLIC_DOMAIN;
     try {
-      const sdk = await loadSdk();
-      const { requestId } = await sdk.signIn({
-        fields: [...asFields(REQUIRED, true), ...asFields(OPTIONAL, false)],
-      });
-      const result = await exchange(requestId);
+      const remote = await getClient(CLIENT_ID);
       if (current !== attempt.current) return;
-      console.log("🏢 [Cliente B2B] Datos recibidos de ZeroID:", result.claims);
-      const user = { subject: result.subject, data: result.claims, at: new Date().toISOString() };
-      window.localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-      setSession(user);
-      setModal(null);
-    } catch (err) {
+      if (remote?.name) name = remote.name;
+      domain = publicDomain(remote?.origins);
+    } catch {
       if (current !== attempt.current) return;
-      setWaitError(SDK_ERRORS[err?.code] ?? err?.message ?? "No pudimos completar el acceso.");
-      setModal("rejected");
     }
+
+    setModal(null);
+    setConsent({
+      id: crypto.randomUUID(),
+      client: {
+        id: CLIENT_ID,
+        name,
+        domain,
+        color: "#1d4ed8",
+      },
+      required: REQUIRED,
+      optional: OPTIONAL,
+    });
+  }
+
+  function finishConsent({ approved, payload }) {
+    const request = consent;
+    setConsent(null);
+    if (!approved || !request) {
+      setWaitError("");
+      setModal("rejected");
+      return;
+    }
+    console.log("🏢 [Cliente B2B] Datos recibidos de ZeroID:", payload);
+    const user = { subject: request.client.id, data: payload, at: new Date().toISOString() };
+    window.localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    setSession(user);
+    setModal(null);
   }
 
   function closeModal() {
@@ -292,18 +285,6 @@ export default function AutobusesPage() {
               </>
             )}
 
-            {modal === "waiting" && (
-              <>
-                <span className="bus-spinner" />
-                <h2>Continúa en ZeroID</h2>
-                <p className="bus-muted">
-                  Escribe tu usuario en la ventana de ZeroID y te llegará un aviso al
-                  teléfono. Ahí verás qué datos pide Expreso Caribe, para qué y por
-                  cuánto tiempo.
-                </p>
-              </>
-            )}
-
             {modal === "rejected" && (
               <>
                 <h2>Inicio de sesión cancelado</h2>
@@ -316,6 +297,19 @@ export default function AutobusesPage() {
           </div>
         </div>
       )}
+
+      {consent &&
+        createPortal(
+          <div className="auth-page-overlay" role="dialog" aria-modal="true" aria-label="Autorización ZeroID">
+            <ConsentPrompt
+              key={consent.id}
+              request={consent}
+              initialStep="data"
+              onRespond={finishConsent}
+            />
+          </div>,
+          document.body
+        )}
     </>
   );
 }

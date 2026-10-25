@@ -3,7 +3,7 @@
 import { useState } from "react";
 import CompanyDetail from "@/components/analytics/CompanyDetail";
 import { DATA_FIELDS } from "@/lib/mockData";
-import { companyById, trustCompanies } from "@/lib/trustData";
+import { companyForClient } from "@/lib/trustData";
 import { buildAuthorizedData } from "@/lib/zeroidConnect";
 
 function DataItem({ item, checked, locked, onToggle }) {
@@ -32,8 +32,8 @@ function DataItem({ item, checked, locked, onToggle }) {
   );
 }
 
-export default function ConsentPrompt({ request, onRespond }) {
-  const [step, setStep] = useState("identity");
+export default function ConsentPrompt({ request, onRespond, initialStep = "identity" }) {
+  const [step, setStep] = useState(initialStep);
   const [isLoading, setIsLoading] = useState(false);
   const [optional, setOptional] = useState(() =>
     Object.fromEntries(request.optional.map((item) => [item.field, false]))
@@ -52,7 +52,7 @@ export default function ConsentPrompt({ request, onRespond }) {
     ];
     const payload = buildAuthorizedData(fields);
     console.log("🛡️ [ZeroID Core] Payload filtrado criptográficamente:", payload);
-    onRespond({ approved: true, fields });
+    onRespond({ approved: true, fields, payload });
   }
 
   function reject() {
@@ -60,26 +60,22 @@ export default function ConsentPrompt({ request, onRespond }) {
   }
 
   const client = request.client;
-  const company =
-    companyById(client?.id) ?? trustCompanies.find((item) => item.domain === client?.domain);
+  const company = companyForClient(client);
 
   if (step === "identity") {
     return (
-      <div className="sdk-auth-modal">
-        <div className="sdk-auth-modal__body">
-          <div className="consent">
-            <span className="consent__avatar" style={{ background: client.color }}>
-              {client.name[0]}
-            </span>
-            <h2 className="consent__title">¿Eres tú quien intenta iniciar sesión?</h2>
-            <p className="text-muted">
-              <strong>{client.name}</strong> ({client.domain}) quiere que inicies
-              sesión con tu ZeroID.
-            </p>
-          </div>
+      <div className="auth-page">
+        <div className="auth-page__identity">
+          <span className="consent__avatar" style={{ background: client.color }}>
+            {client.name[0]}
+          </span>
+          <h1 className="auth-page__title">¿Eres tú quien intenta iniciar sesión?</h1>
+          <p className="auth-page__lead">
+            <strong>{client.name}</strong> ({client.domain}) quiere que inicies sesión con tu ZeroID.
+          </p>
         </div>
-        <footer className="sdk-auth-modal__footer">
-          <div className="consent__actions">
+        <footer className="auth-page__footer">
+          <div className="consent__actions auth-page__identity-actions">
             <button type="button" className="btn btn--primary" onClick={() => setStep("data")}>
               Sí, soy yo
             </button>
@@ -93,71 +89,85 @@ export default function ConsentPrompt({ request, onRespond }) {
   }
 
   return (
-    <div className="sdk-auth-modal">
-      <div className="sdk-auth-modal__body">
-        <div className="consent consent--wide">
-          <div className="consent__intro">
-            <h2 className="consent__title">
-              {client.name} solicita acceso a tus datos
-            </h2>
-            <p className="text-muted">
-              Revisa qué datos pide, para qué los usará y cuánto tiempo los guardará.
+    <div className="auth-page">
+      <div className="auth-page__split">
+        <section className="auth-page__context">
+          <header className="auth-page__header">
+            <div className="auth-page__brand">
+              <span className="consent__avatar" style={{ background: client.color }}>
+                {client.name[0]}
+              </span>
+              <p className="auth-page__eyebrow">{client.domain}</p>
+            </div>
+            <h1 className="auth-page__title">{client.name} solicita acceso</h1>
+            <p className="auth-page__lead">
+              Revisa el grado de confianza y las advertencias antes de decidir qué compartir.
             </p>
-          </div>
+          </header>
 
           {company ? (
             <div className="consent__dossier">
               <CompanyDetail company={company} />
             </div>
           ) : null}
+        </section>
 
-          <div className="consent__permissions">
-            <div className="consent__group">
-              <span className="section-tag">Obligatorios</span>
-              <ul className="consent__list">
-                {request.required.map((item) => (
-                  <DataItem key={item.field} item={item} checked locked />
-                ))}
-              </ul>
-            </div>
+        <section className="auth-page__control">
+          <div className="auth-page__scroll">
+            <h2 className="auth-page__selector-title">Selecciona qué datos compartir</h2>
+            <p className="auth-page__lead">
+              Revisa qué datos pide, para qué los usará y cuánto tiempo los guardará.
+            </p>
 
-            {request.optional.length > 0 && (
+            <div className="consent__permissions">
               <div className="consent__group">
-                <span className="section-tag">Opcionales</span>
-                <ul className="consent__list consent__list--optional">
-                  {request.optional.map((item) => (
-                    <DataItem
-                      key={item.field}
-                      item={item}
-                      checked={optional[item.field]}
-                      onToggle={() => toggle(item.field)}
-                    />
+                <span className="section-tag">Obligatorios</span>
+                <ul className="consent__list">
+                  {request.required.map((item) => (
+                    <DataItem key={item.field} item={item} checked locked />
                   ))}
                 </ul>
               </div>
-            )}
+
+              {request.optional.length > 0 && (
+                <div className="consent__group">
+                  <span className="section-tag">Opcionales</span>
+                  <ul className="consent__list">
+                    {request.optional.map((item) => (
+                      <DataItem
+                        key={item.field}
+                        item={item}
+                        checked={optional[item.field]}
+                        onToggle={() => toggle(item.field)}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <p className="consent__note">
+              Puedes revocar este acceso cuando quieras desde Sitios conectados.
+            </p>
           </div>
 
-          <p className="consent__note">
-            Puedes revocar este acceso cuando quieras desde Sitios conectados.
-          </p>
-        </div>
+          <footer className="auth-page__footer">
+            <div className="consent__actions">
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={authorize}
+                disabled={isLoading}
+              >
+                {isLoading ? "Generando firma (JWK)..." : "Firmar y Autorizar"}
+              </button>
+              <button type="button" className="btn btn--secondary" onClick={reject} disabled={isLoading}>
+                Cancelar
+              </button>
+            </div>
+          </footer>
+        </section>
       </div>
-      <footer className="sdk-auth-modal__footer">
-        <div className="consent__actions">
-          <button
-            type="button"
-            className="btn btn--primary"
-            onClick={authorize}
-            disabled={isLoading}
-          >
-            {isLoading ? "Generando firma (JWK)..." : "Firmar y Autorizar"}
-          </button>
-          <button type="button" className="btn btn--secondary" onClick={reject} disabled={isLoading}>
-            Cancelar
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }

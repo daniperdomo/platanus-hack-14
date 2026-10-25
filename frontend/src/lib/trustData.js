@@ -464,6 +464,36 @@ const companies = [
     ],
   },
   {
+    id: "expreso",
+    name: "Expreso Caribe",
+    domain: "expresocaribe.com",
+    category: "Transporte",
+    trend: 3,
+    ...oracle(
+      { seguridad: 78, minimizacion: 84, transparencia: 90, derechos: 76, retencion: 82, terceros: 74 },
+      {
+        seguridad: "El boleto se emite contra una identidad verificada y el acceso queda firmado en el dispositivo.",
+        minimizacion: "Pide nombre y documento porque la ley de transporte terrestre lo exige para el registro de pasajeros.",
+        transparencia: "Cada dato declara para qué se usa y cuánto tiempo se conserva antes de pedirlo.",
+        derechos: "El pasajero puede revocar el acceso y dejar de compartir teléfono, nacimiento o dirección.",
+        retencion: "El registro del viaje se guarda un año. La factura, cinco, por obligación tributaria.",
+        terceros: "No vende la ubicación ni la agenda. Comparte el boleto solo con la operación del viaje.",
+      },
+      81,
+      "B"
+    ),
+    signatureAlgorithm: "RS256",
+    incidents: [],
+    policies: [
+      policy("Identidad", "Nombre", "required", "Emitir el boleto a nombre del pasajero, como exige la ley de transporte.", 365),
+      policy("Identidad", "Documento", "required", "Verificar la identidad al abordar el autobús.", 365),
+      policy("Contacto", "Correo", "required", "Enviar el boleto y el comprobante de pago.", 730),
+      policy("Contacto", "Teléfono", "optional", "Avisar por SMS de retrasos o cambios de andén.", 365),
+      policy("Identidad", "Fecha de nacimiento", "optional", "Calcular descuentos de estudiante o tercera edad. No se guarda.", 0),
+      policy("Contacto", "Dirección", "optional", "Emitir la factura fiscal. Se conserva por obligación tributaria.", 1825),
+    ],
+  },
+  {
     id: "vortex",
     name: "Vortex App",
     domain: "vortex.app",
@@ -535,6 +565,16 @@ export function companyForDomain(domain) {
   if (!host) return undefined;
   return trustCompanies.find(
     (company) => host === company.domain || host.endsWith(`.${company.domain}`)
+  );
+}
+
+export function companyForClient(client) {
+  if (!client) return undefined;
+  const name = client.name?.trim().toLowerCase();
+  return (
+    companyById(client.id) ??
+    companyForDomain(client.domain) ??
+    trustCompanies.find((company) => company.name.toLowerCase() === name)
   );
 }
 

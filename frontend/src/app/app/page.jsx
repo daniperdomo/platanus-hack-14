@@ -10,18 +10,7 @@ export default function PhoneAppPage() {
   const [request, answer] = usePendingRequest();
 
   if (request) {
-    return (
-      <main className="zero-app">
-        <header className="zero-app__bar">
-          <Link href="/" className="nav__brand" aria-label="ZeroID">
-            <BrandLogo variant="lockup" />
-          </Link>
-        </header>
-        <div className="zero-app__stage">
-          <ConsentPrompt key={request.id} request={request} onRespond={answer} />
-        </div>
-      </main>
-    );
+    return <ConsentPrompt key={request.id} request={request} onRespond={answer} />;
   }
 
   return (
