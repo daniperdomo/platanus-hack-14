@@ -1,5 +1,8 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers
@@ -8,9 +11,21 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.api import auth, clients, debug, document, ingest, pairings, verify
+from app.api.routers import trust, trust_async
 from app.core.config import settings
 from app.db.database import init_db
 from app.services import face
+
+logger = logging.getLogger(__name__)
+scheduler = BackgroundScheduler()
+
+
+def _configure_app_logging() -> None:
+    uvicorn_logger = logging.getLogger("uvicorn.error")
+    app_logger = logging.getLogger("app")
+    app_logger.handlers = list(uvicorn_logger.handlers)
+    app_logger.setLevel(logging.INFO)
+    app_logger.propagate = False
 
 # Requests above this size are refused before the multipart parser runs, and parts up to this
 # size stay in RAM: Starlette spools larger parts to a temp file on disk.
@@ -41,12 +56,28 @@ class UploadLimitMiddleware:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    _configure_app_logging()
     settings.require_secrets()
     init_db()
     if not settings.gemini_api_key:
         raise RuntimeError("GEMINI_API_KEY no está definida: no se pueden leer pasaportes.")
     face._deepface().build_model(settings.face_model)
-    yield
+
+    loop = asyncio.get_running_loop()
+    scheduler.add_job(
+        trust_async.enqueue_continuous_audit,
+        "interval",
+        hours=1,  # producción: days=7
+        args=[loop],
+        id="trust_continuous_audit",
+        replace_existing=True,
+    )
+    scheduler.start()
+    logger.info("Scheduler de auditoría Trust iniciado (cada 1 hora; objetivo de producción: 7 días).")
+    try:
+        yield
+    finally:
+        scheduler.shutdown(wait=False)
 
 
 app = FastAPI(title="Oráculo de Retención Cero", lifespan=lifespan)
@@ -67,6 +98,8 @@ app.include_router(verify.router)
 app.include_router(auth.router)
 app.include_router(pairings.router)
 app.include_router(clients.router)
+app.include_router(trust.router)
+app.include_router(trust_async.router)
 
 
 @app.get("/health")

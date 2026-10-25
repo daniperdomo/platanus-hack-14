@@ -69,8 +69,8 @@ export default function AnalyticsPage() {
       </header>
 
       <p className="demo-note">
-        Prototipo: los puntajes son de ejemplo hasta conectar el scraper. Última
-        actualización simulada: {lastScan}.
+        Trust Scores pre-calculados por el oráculo Gemini. Última
+        revisión: {lastScan}.
       </p>
 
       <div className="stats stats--four">

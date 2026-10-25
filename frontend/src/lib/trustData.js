@@ -3,16 +3,16 @@
 
 export const DIMENSIONS = [
   {
-    key: "privacidad",
-    label: "Privacidad",
-    weight: 0.25,
-    description: "Qué tan clara y respetuosa es su política de privacidad.",
-  },
-  {
     key: "seguridad",
     label: "Seguridad",
     weight: 0.25,
-    description: "Historial de brechas y filtraciones de datos.",
+    description: "Cifrado, control de acceso y protección de la cuenta.",
+  },
+  {
+    key: "minimizacion",
+    label: "Minimización y Propósito",
+    weight: 0.2,
+    description: "Si pide solo los datos que necesita para operar.",
   },
   {
     key: "transparencia",
@@ -21,16 +21,22 @@ export const DIMENSIONS = [
     description: "Si declara para qué usa cada dato y con quién lo comparte.",
   },
   {
-    key: "minimizacion",
-    label: "Minimización",
-    weight: 0.15,
-    description: "Si pide solo los datos que necesita para operar.",
-  },
-  {
     key: "derechos",
     label: "Derechos del usuario",
     weight: 0.15,
     description: "Facilidad para descargar, corregir o borrar tus datos.",
+  },
+  {
+    key: "retencion",
+    label: "Retención",
+    weight: 0.1,
+    description: "Si declara plazos claros de conservación y borrado.",
+  },
+  {
+    key: "terceros",
+    label: "Terceros",
+    weight: 0.1,
+    description: "Con quién comparte datos y bajo qué condiciones.",
   },
 ];
 
@@ -55,6 +61,15 @@ function policy(category, label, status, reason, retentionDays) {
   return { category, label, status, reason, retentionDays };
 }
 
+function oracle(scores, justifications, scoreTotal, grade) {
+  return { scores, justifications, scoreTotal, grade };
+}
+
+function logoUrlFor(domain) {
+  const host = domain === "x.com" ? "twitter.com" : domain;
+  return `https://www.google.com/s2/favicons?domain=${host}&sz=128`;
+}
+
 const companies = [
   {
     id: "apple",
@@ -62,7 +77,19 @@ const companies = [
     domain: "apple.com",
     category: "Tecnología",
     trend: 2,
-    scores: { privacidad: 90, seguridad: 85, transparencia: 84, minimizacion: 82, derechos: 88 },
+    ...oracle(
+      { seguridad: 60, minimizacion: 50, transparencia: 40, derechos: 70, retencion: 30, terceros: 50 },
+      {
+        seguridad: "Menciona prácticas generales de almacenamiento, sin detalle de cifrado.",
+        minimizacion: "No limita con claridad la recolección a lo estrictamente necesario.",
+        transparencia: "La página pública redirige a enlaces y deja el extracto incompleto.",
+        derechos: "Hay un enlace directo para gestionar y acceder a los datos de la cuenta.",
+        retencion: "No declara plazos específicos de conservación ni borrado.",
+        terceros: "No explica con claridad los criterios para compartir con terceros.",
+      },
+      52,
+      "C"
+    ),
     signatureAlgorithm: "ES256",
     incidents: [],
     policies: [
@@ -79,7 +106,19 @@ const companies = [
     domain: "spotify.com",
     category: "Entretenimiento",
     trend: 0,
-    scores: { privacidad: 74, seguridad: 80, transparencia: 76, minimizacion: 70, derechos: 82 },
+    ...oracle(
+      { seguridad: 85, minimizacion: 75, transparencia: 90, derechos: 90, retencion: 70, terceros: 75 },
+      {
+        seguridad: "Medidas técnicas estándar de la industria, descritas de forma general.",
+        minimizacion: "Recopila datos de uso y técnicos justificados por el streaming.",
+        transparencia: "Estructura clara, con secciones detalladas sobre el tratamiento.",
+        derechos: "Acceso, rectificación, supresión y portabilidad bien declarados.",
+        retencion: "Retención ligada a fraude y ley, sin plazos por categoría.",
+        terceros: "Publicidad dirigida con socios y un opt-out visible.",
+      },
+      82,
+      "B"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [],
     policies: [
@@ -95,7 +134,19 @@ const companies = [
     domain: "microsoft.com",
     category: "Tecnología",
     trend: -1,
-    scores: { privacidad: 76, seguridad: 70, transparencia: 78, minimizacion: 68, derechos: 84 },
+    ...oracle(
+      { seguridad: 85, minimizacion: 75, transparencia: 90, derechos: 85, retencion: 70, terceros: 80 },
+      {
+        seguridad: "Medidas técnicas robustas y cifrado, con una superficie de datos muy amplia.",
+        minimizacion: "Recoge voz, biometría y contenido; hay controles para limitar lo opcional.",
+        transparencia: "Muy detallada: categorías de datos y finalidades quedan explícitas.",
+        derechos: "Canales claros para acceder y controlar la información de la cuenta.",
+        retencion: "Habla de almacenamiento general, sin plazos por categoría en el extracto.",
+        terceros: "Describe filiales, proveedores y marcos de transferencia internacional.",
+      },
+      81,
+      "B"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [],
     policies: [
@@ -112,7 +163,19 @@ const companies = [
     domain: "paypal.com",
     category: "Finanzas",
     trend: 1,
-    scores: { privacidad: 72, seguridad: 74, transparencia: 70, minimizacion: 62, derechos: 76 },
+    ...oracle(
+      { seguridad: 90, minimizacion: 75, transparencia: 85, derechos: 80, retencion: 70, terceros: 70 },
+      {
+        seguridad: "Autenticación, biometría y prevención de fraude bien descritos.",
+        minimizacion: "Pide datos financieros, biometría y contactos; amplio para un medio de pago.",
+        transparencia: "Categorías y fuentes quedan claras, con lenguaje legal denso.",
+        derechos: "Declara derechos y controles de perfil sujetos a la ley aplicable.",
+        retencion: "Falta una sección clara de plazos por categoría de dato.",
+        terceros: "Comparte con socios, agencias de crédito y el grupo corporativo.",
+      },
+      80,
+      "B"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [],
     policies: [
@@ -129,7 +192,19 @@ const companies = [
     domain: "netflix.com",
     category: "Entretenimiento",
     trend: 0,
-    scores: { privacidad: 70, seguridad: 78, transparencia: 68, minimizacion: 66, derechos: 74 },
+    ...oracle(
+      { seguridad: 85, minimizacion: 75, transparencia: 95, derechos: 90, retencion: 80, terceros: 75 },
+      {
+        seguridad: "Medidas técnicas y organizativas robustas para fraude y sistemas.",
+        minimizacion: "Recoge pago, uso y dispositivo; volumen alto pero alineado al servicio.",
+        transparencia: "Muy estructurada: categorías, fuentes y usos quedan explícitos.",
+        derechos: "Detalla derechos, privacidad y apelaciones con mecanismos concretos.",
+        retencion: "Retiene por fines comerciales y legales; los plazos exactos son menos claros.",
+        terceros: "Comparte con socios, proveedores y publicidad conductual.",
+      },
+      83,
+      "B"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [],
     policies: [
@@ -145,7 +220,19 @@ const companies = [
     domain: "airbnb.com",
     category: "Transporte",
     trend: 3,
-    scores: { privacidad: 66, seguridad: 72, transparencia: 70, minimizacion: 54, derechos: 72 },
+    ...oracle(
+      { seguridad: 70, minimizacion: 60, transparencia: 65, derechos: 70, retencion: 50, terceros: 60 },
+      {
+        seguridad: "Cifrado estándar en tránsito y reposo, sin detalle de auditoría.",
+        minimizacion: "Pide más datos de los estrictamente necesarios para reservar.",
+        transparencia: "Lenguaje comprensible, denso en cookies y usos secundarios.",
+        derechos: "Declara ARCO, con tiempos de respuesta amplios.",
+        retencion: "Los plazos de conservación son vagos y dependen de criterios internos.",
+        terceros: "Comparte con socios y proveedores, con poco opt-out.",
+      },
+      64,
+      "C"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [],
     policies: [
@@ -163,7 +250,19 @@ const companies = [
     domain: "mercadolibre.com",
     category: "Comercio",
     trend: -2,
-    scores: { privacidad: 64, seguridad: 60, transparencia: 66, minimizacion: 58, derechos: 68 },
+    ...oracle(
+      { seguridad: 85, minimizacion: 75, transparencia: 80, derechos: 85, retencion: 70, terceros: 75 },
+      {
+        seguridad: "Medidas adecuadas y biometría para autenticar y prevenir fraude.",
+        minimizacion: "Pide lo necesario para operar, con varios datos obligatorios.",
+        transparencia: "Explica cookies, recomendaciones y biometría con centro de privacidad.",
+        derechos: "Canales claros para acceder, corregir y pedir reportes.",
+        retencion: "Guarda el mínimo para el propósito o por requerimiento legal.",
+        terceros: "No vende datos, pero unifica la cuenta con Mercado Pago.",
+      },
+      79,
+      "B"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [{ year: 2022, text: "Acceso no autorizado a datos de unos 300.000 usuarios." }],
     policies: [
@@ -181,7 +280,19 @@ const companies = [
     domain: "amazon.com",
     category: "Comercio",
     trend: -1,
-    scores: { privacidad: 54, seguridad: 70, transparencia: 58, minimizacion: 48, derechos: 70 },
+    ...oracle(
+      { seguridad: 70, minimizacion: 48, transparencia: 58, derechos: 70, retencion: 45, terceros: 40 },
+      {
+        seguridad: "Protege pagos y cuentas, con una superficie publicitaria enorme.",
+        minimizacion: "Cruza compras, Alexa y habitación para personalizar y vender.",
+        transparencia: "La política es larga y opaca sobre publicidad basada en datos.",
+        derechos: "Permite descargar y borrar, con flujos poco visibles.",
+        retencion: "Guardan historial de compras y voz por años, sin plazo claro.",
+        terceros: "Comparten perfiles con vendedores, anunciantes y filiales.",
+      },
+      58,
+      "C"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [
       { year: 2021, text: "Multa de 746 M€ en Luxemburgo por publicidad basada en datos personales (GDPR)." },
@@ -200,7 +311,19 @@ const companies = [
     domain: "google.com",
     category: "Tecnología",
     trend: 1,
-    scores: { privacidad: 50, seguridad: 82, transparencia: 62, minimizacion: 40, derechos: 80 },
+    ...oracle(
+      { seguridad: 90, minimizacion: 70, transparencia: 85, derechos: 80, retencion: 75, terceros: 70 },
+      {
+        seguridad: "Cifrado, 2FA y controles internos; centraliza un volumen enorme de datos.",
+        minimizacion: "Recoge actividad, ubicación y dispositivos más allá de lo esencial.",
+        transparencia: "Documento detallado, con definiciones y ejemplos claros.",
+        derechos: "Exportar y borrar es posible; los flujos de gestión son complejos.",
+        retencion: "El plazo depende de la cuenta y el dispositivo, sin un tope global.",
+        terceros: "Socios de confianza y un intercambio amplio para anuncios.",
+      },
+      79,
+      "B"
+    ),
     signatureAlgorithm: "ES256",
     incidents: [
       { year: 2019, text: "Multa de 50 M€ de la CNIL por falta de transparencia en el consentimiento." },
@@ -220,7 +343,19 @@ const companies = [
     domain: "uber.com",
     category: "Transporte",
     trend: 2,
-    scores: { privacidad: 56, seguridad: 42, transparencia: 58, minimizacion: 50, derechos: 66 },
+    ...oracle(
+      { seguridad: 90, minimizacion: 85, transparencia: 95, derechos: 90, retencion: 80, terceros: 85 },
+      {
+        seguridad: "Verificación biométrica y cifrado, con una recolección amplia de superficie.",
+        minimizacion: "Ubicación y demografía justificadas por el servicio de viaje.",
+        transparencia: "Detalle geográfico y legal adaptado a GDPR, LGPD y otras normas.",
+        derechos: "Mecanismos locales e internacionales para ARCO y portabilidad.",
+        retencion: "La retención se fragmenta en apartados externos a consultar.",
+        terceros: "Declara intercambios con usuarios, conductores y socios.",
+      },
+      89,
+      "B"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [
       { year: 2016, text: "Brecha que expuso datos de 57 millones de usuarios y conductores, ocultada por un año." },
@@ -240,7 +375,19 @@ const companies = [
     domain: "x.com",
     category: "Redes sociales",
     trend: -4,
-    scores: { privacidad: 46, seguridad: 40, transparencia: 44, minimizacion: 50, derechos: 58 },
+    ...oracle(
+      { seguridad: 75, minimizacion: 60, transparencia: 80, derechos: 70, retencion: 50, terceros: 65 },
+      {
+        seguridad: "Autenticación y cifrado de DMs; recoge biometría y mucho del dispositivo.",
+        minimizacion: "Pide contactos, agenda y metadatos que exceden el timeline.",
+        transparencia: "Explica qué se recoge, con muchos propósitos superpuestos.",
+        derechos: "Hay controles; el entrenamiento de IA y el rastreo son difíciles de limitar.",
+        retencion: "La retención es genérica, sin plazos por categoría.",
+        terceros: "Amplio intercambio con anunciantes, afiliados y socios.",
+      },
+      69,
+      "C"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [
       { year: 2022, text: "Filtración de datos de 5,4 millones de cuentas por una vulnerabilidad de la API." },
@@ -259,7 +406,20 @@ const companies = [
     domain: "tiktok.com",
     category: "Redes sociales",
     trend: -2,
-    scores: { privacidad: 36, seguridad: 52, transparencia: 38, minimizacion: 34, derechos: 56 },
+    logoUrl: "",
+    ...oracle(
+      { seguridad: 75, minimizacion: 60, transparencia: 80, derechos: 70, retencion: 50, terceros: 45 },
+      {
+        seguridad: "Menciona cifrado, pero recolecta un volumen enorme de datos sensibles.",
+        minimizacion: "Biometría, teclas y portapapeles: pide mucho más de lo necesario.",
+        transparencia: "Detalla qué recoge; el volumen abruma al usuario promedio.",
+        derechos: "Hay ajustes, con control limitado en varias jurisdicciones.",
+        retencion: "No fija plazos exactos por categoría de dato.",
+        terceros: "Comparte con anunciantes, socios y afiliados de forma amplia.",
+      },
+      68,
+      "C"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [{ year: 2023, text: "Multa de 345 M€ en Irlanda por el manejo de datos de menores (GDPR)." }],
     policies: [
@@ -276,7 +436,19 @@ const companies = [
     domain: "facebook.com",
     category: "Redes sociales",
     trend: -3,
-    scores: { privacidad: 32, seguridad: 38, transparencia: 42, minimizacion: 30, derechos: 62 },
+    ...oracle(
+      { seguridad: 38, minimizacion: 30, transparencia: 42, derechos: 62, retencion: 40, terceros: 28 },
+      {
+        seguridad: "Historial de filtraciones masivas; la cuenta concentra demasiada superficie.",
+        minimizacion: "Pixel, intereses y actividad fuera de la app: pide casi todo.",
+        transparencia: "El texto es largo, pero el sistema publicitario sigue opaco.",
+        derechos: "Descargar y borrar existe; desconectar el anuncio es difícil.",
+        retencion: "Guardan tus datos años sin un plazo único y claro.",
+        terceros: "Comparten perfiles con anunciantes, apps y filiales del grupo.",
+      },
+      40,
+      "D"
+    ),
     signatureAlgorithm: "RS256",
     incidents: [
       { year: 2021, text: "Publicación de datos de 533 millones de usuarios obtenidos por scraping." },
@@ -300,15 +472,15 @@ export function trustScore(scores) {
 }
 
 export function gradeFor(score) {
-  if (score >= 80) return "A";
-  if (score >= 65) return "B";
+  if (score >= 90) return "A";
+  if (score >= 70) return "B";
   if (score >= 50) return "C";
   return "D";
 }
 
 export const LEVELS = [
-  { min: 80, grade: "A", label: "Confiable", tone: "good", icon: "✓" },
-  { min: 65, grade: "B", label: "Aceptable", tone: "warning", icon: "!" },
+  { min: 90, grade: "A", label: "Confiable", tone: "good", icon: "✓" },
+  { min: 70, grade: "B", label: "Aceptable", tone: "warning", icon: "!" },
   { min: 50, grade: "C", label: "Riesgo moderado", tone: "serious", icon: "▲" },
   { min: 0, grade: "D", label: "Alto riesgo", tone: "critical", icon: "✕" },
 ];
@@ -317,10 +489,11 @@ export function levelFor(score) {
   return LEVELS.find((level) => score >= level.min);
 }
 
-export const trustCompanies = companies.map((company) => {
-  const score = trustScore(company.scores);
-  return { ...company, score, grade: gradeFor(score) };
-});
+export const trustCompanies = companies.map((company) => ({
+  ...company,
+  logoUrl: company.logoUrl !== undefined ? company.logoUrl : logoUrlFor(company.domain),
+  score: company.scoreTotal,
+}));
 
 export function companyById(id) {
   return trustCompanies.find((company) => company.id === id);

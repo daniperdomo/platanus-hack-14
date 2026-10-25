@@ -169,7 +169,11 @@ export default function ConsentScreen() {
                     <PrivacyDossier
                       companyData={{
                         name: company.name,
+                        logoUrl: company.logoUrl,
                         trustScore: company.grade,
+                        scores: company.scores,
+                        justifications: company.justifications,
+                        scoreTotal: company.scoreTotal,
                         policies: company.policies,
                         signatureAlgorithm: company.signatureAlgorithm,
                       }}
