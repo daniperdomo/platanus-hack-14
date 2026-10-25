@@ -52,9 +52,10 @@ def accounts(monkeypatch, credential_id):
             return None
         return account
 
-    def create_request(client_name, rules, challenge, ttl, client_domain="", fields=None, kind="third_party", credential_id=None):
+    def create_request(client_name, rules, challenge, ttl, client_domain="", fields=None, kind="third_party", credential_id=None, client_id=None):
         request_id = str(uuid.uuid4())
         row = {
+            "client_id": client_id,
             "client_name": client_name,
             "client_domain": client_domain,
             "rules": list(rules),
@@ -97,7 +98,12 @@ def accounts(monkeypatch, credential_id):
         if row is None or not row["approved"] or row["consumed"]:
             return None
         row["consumed"] = True
-        return {"client_name": row["client_name"], "claims": row["disclosed_claims"]}
+        return {
+            "client_name": row["client_name"],
+            "claims": row["disclosed_claims"],
+            "credential_id": row["credential_id"],
+            "client_id": row["client_id"],
+        }
 
     def inbox(owner_id):
         return [
@@ -129,6 +135,7 @@ def accounts(monkeypatch, credential_id):
     monkeypatch.setattr(database, "list_inbox", inbox)
     monkeypatch.setattr(database, "mark_account_paired", mark_paired)
     monkeypatch.setattr(database, "credential_exists", lambda cid: str(cid) in state["credentials"])
+    monkeypatch.setattr(database, "list_push_tokens", lambda owner_id: [])
     return state
 
 

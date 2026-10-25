@@ -3,7 +3,8 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Any, Dict
+import json
+from typing import Any, Dict, Optional
 
 import jwt
 from cryptography.hazmat.primitives import hashes, serialization
@@ -35,6 +36,14 @@ def _private_key() -> rsa.RSAPrivateKey:
 
 def public_key() -> rsa.RSAPublicKey:
     return _private_key().public_key()
+
+
+KEY_ID = "zeroid-oraculo-1"
+
+
+def public_jwk() -> Dict[str, Any]:
+    jwk = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(public_key()))
+    return {**jwk, "kid": KEY_ID, "use": "sig", "alg": ALGORITHM}
 
 
 def issue_credential(
@@ -76,19 +85,21 @@ def issue_session(credential_id: str, username: str) -> str:
     return jwt.encode(payload, _private_key(), algorithm=ALGORITHM)
 
 
-def issue_presentation(claims: Dict[str, Any], audience: str, ttl: timedelta) -> str:
+def issue_presentation(
+    claims: Dict[str, Any], audience: str, ttl: timedelta, subject: Optional[str] = None
+) -> str:
     """Short-lived token for one third party. It carries only the claims just disclosed."""
     now = datetime.now(timezone.utc)
     payload = {
         "iss": ISSUER,
-        "sub": str(uuid.uuid4()),
+        "sub": subject or str(uuid.uuid4()),
         "aud": audience,
         "iat": now,
         "exp": now + ttl,
         "typ": "presentation",
         "claims": claims,
     }
-    return jwt.encode(payload, _private_key(), algorithm=ALGORITHM)
+    return jwt.encode(payload, _private_key(), algorithm=ALGORITHM, headers={"kid": KEY_ID})
 
 
 def _b64url_decode(value: str) -> bytes:

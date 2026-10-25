@@ -37,6 +37,8 @@ export default function ConsentScreen() {
   const fields = request?.fields ?? [];
   const required = fields.filter((item) => item.required);
   const choices = fields.filter((item) => !item.required);
+  const proofs = fields.filter((item) => ORACLE.has(item.field));
+  const asksPersonalData = proofs.length < fields.length;
 
   const close = () => sheetRef.current?.close();
 
@@ -97,9 +99,15 @@ export default function ConsentScreen() {
     }
   }
 
+  const isSignIn = request?.kind === 'sign_in';
+
   function continueFromIdentity() {
     if (request?.kind === 'login' || fields.length === 0) {
       approve([]);
+      return;
+    }
+    if (isSignIn && !asksPersonalData) {
+      approve(fields);
       return;
     }
     setStep('data');
@@ -130,7 +138,11 @@ export default function ConsentScreen() {
           ) : (
             <>
               <Text style={type.overline}>
-                {request.kind === 'login' ? 'Inicio de sesión' : 'Solicitud de acceso'}
+                {request.kind === 'login'
+                  ? 'Inicio de sesión'
+                  : isSignIn
+                    ? 'Iniciar sesión con ZeroID'
+                    : 'Solicitud de acceso'}
               </Text>
               <Text style={[type.title, styles.title]}>{request.client_name}</Text>
               {request.client_domain ? <Text style={type.mono}>{request.client_domain}</Text> : null}
@@ -138,6 +150,21 @@ export default function ConsentScreen() {
               {step === 'identity' ? (
                 <>
                   <Text style={[type.body, styles.lead]}>¿Eres tú quien intenta iniciar sesión?</Text>
+                  {isSignIn ? (
+                    <View style={styles.proofs}>
+                      <Text style={type.caption}>
+                        {asksPersonalData
+                          ? `${request.client_name} recibirá un identificador anónimo exclusivo para este sitio. En el siguiente paso eliges qué datos compartir.`
+                          : `${request.client_name} no recibirá tu nombre, documentos ni contacto. Solo un identificador anónimo exclusivo para este sitio${proofs.length > 0 ? ' y estas confirmaciones:' : '.'}`}
+                      </Text>
+                      {proofs.map((item) => (
+                        <View key={item.field} style={styles.proofRow}>
+                          <Feather name="check" size={14} color={colors.text} />
+                          <Text style={type.body}>{DATA_FIELDS[item.field] ?? item.field}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
                   {company ? <PrivacyDossier company={company} /> : null}
                   <View style={styles.actions}>
                     <TouchableOpacity
@@ -267,6 +294,19 @@ function createStyles(colors: ThemeColors, hairline: number) {
     },
     lead: {
       marginVertical: 4,
+    },
+    proofs: {
+      gap: 8,
+      padding: 14,
+      borderRadius: 12,
+      borderWidth: hairline,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    proofRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
     },
     group: {
       marginTop: 8,

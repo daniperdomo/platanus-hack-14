@@ -1,17 +1,28 @@
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+const TIMEOUT_MS = 10_000;
+
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
 
 async function request(path: string, options?: RequestInit) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, options);
+    response = await fetch(`${API_URL}${path}`, { ...options, signal: controller.signal });
   } catch {
-    throw new Error('No pudimos conectar con ZeroID. Revisa la dirección del servidor.');
+    throw new Error(`No pudimos conectar con ZeroID en ${API_URL}. Revisa que el servidor esté accesible en la red.`);
+  } finally {
+    clearTimeout(timer);
   }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const detail = body?.detail;
     const message = typeof detail === 'string' ? detail : detail?.[0]?.msg;
-    throw new Error(message ?? `Error ${response.status}`);
+    throw new ApiError(message ?? `Error ${response.status}`, response.status);
   }
   return body;
 }
@@ -66,6 +77,14 @@ export function approveRequest(requestId: string, body: { token: string; signatu
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  });
+}
+
+export function registerPushToken(token: string, pushToken: string) {
+  return request('/auth/push-token', {
+    method: 'POST',
+    headers: authHeaders(token, true),
+    body: JSON.stringify({ token: pushToken }),
   });
 }
 

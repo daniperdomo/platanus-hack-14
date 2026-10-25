@@ -36,6 +36,7 @@ export default function SitesPage() {
           <EmptyState
             title="Aún no te conectas a ningún sitio"
             body="Cuando uses “Continuar con ZeroID”, verás aquí qué datos recibe cada sitio y para qué los usa."
+            showAction={false}
           />
         </section>
       )}

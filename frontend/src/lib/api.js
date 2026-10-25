@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function errorMessage(body, status) {
   const { detail } = body;
@@ -121,6 +121,26 @@ export function createPairing(payload) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ payload }),
+  });
+}
+
+export function registerClient({ name, origins, redirectUri = "" }) {
+  return request("/clients", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, origins, redirect_uri: redirectUri }),
+  });
+}
+
+export function getClient(clientId) {
+  return request(`/clients/${encodeURIComponent(clientId)}`);
+}
+
+export function startSignIn({ clientId, origin, username, scopes, fields = [] }) {
+  return request("/auth/sign-in", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ client_id: clientId, origin, username: username || null, scopes, fields }),
   });
 }
 

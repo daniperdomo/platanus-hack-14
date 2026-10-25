@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
+import InboxWatcher from '../components/InboxWatcher';
 import { fonts, useTheme } from '../constants/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -72,6 +73,7 @@ export default function RootLayout() {
           }}
         />
       </Stack>
+      <InboxWatcher />
     </GestureHandlerRootView>
   );
 }

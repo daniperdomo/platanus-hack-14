@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ThemeSwitcher from '../components/ThemeSwitcher';
-import { claimPairing, fetchInbox, fetchRequest, markPaired } from '../lib/api';
+import { claimPairing, fetchRequest, markPaired } from '../lib/api';
 import { confirmIdentity } from '../lib/confirm';
 import { decryptJson, fromBase64Url } from '../lib/crypto';
 import { setPending } from '../lib/pending';
@@ -50,8 +50,8 @@ export default function OnboardingScreen() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
   const scanning = useRef(false);
-  const prompted = useRef<string | null>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ scan?: string }>();
@@ -69,32 +69,6 @@ export default function OnboardingScreen() {
     setHandledScan(params.scan);
     setCameraMode('approve');
   }
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!wallet) return undefined;
-      let stop = false;
-      prompted.current = null;
-      const look = async () => {
-        try {
-          const inbox = await fetchInbox(wallet.token);
-          const prompt = inbox.requests.find((item) => item.kind === 'login');
-          if (!prompt || stop || prompted.current === prompt.request_id) return;
-          prompted.current = prompt.request_id;
-          setPending(prompt);
-          router.push('/consent');
-        } catch {
-          // The next poll retries. A closed app simply waits until it opens.
-        }
-      };
-      look();
-      const timer = setInterval(look, 4000);
-      return () => {
-        stop = true;
-        clearInterval(timer);
-      };
-    }, [router, wallet])
-  );
 
   const startCamera = async (mode: 'pair' | 'approve') => {
     if (!permission?.granted) {
@@ -128,7 +102,9 @@ export default function OnboardingScreen() {
       }
       throw new Error('Ese código no es de ZeroID.');
     } catch (err) {
-      scanning.current = false;
+      // Closing the camera keeps the same QR from being read again in a loop.
+      setStatus('');
+      setCameraMode(null);
       setError(err instanceof Error ? err.message : 'No pudimos leer el código.');
     }
   };
@@ -139,6 +115,7 @@ export default function OnboardingScreen() {
     if (!id || !key) throw new Error('El código de vinculación está incompleto.');
     const confirmed = await confirmIdentity();
     if (!confirmed) throw new Error('Hace falta confirmar tu identidad para vincular.');
+    setStatus('Vinculando este teléfono…');
     const claimed = await claimPairing(id);
     const decoded = decryptJson<PairingPayload>(fromBase64Url(key), claimed.payload);
     const vault = decryptJson<Record<string, string>>(
@@ -154,6 +131,7 @@ export default function OnboardingScreen() {
     await saveWallet(next);
     await markPaired(decoded.token).catch(() => undefined);
     setWallet(next);
+    setStatus('');
     setCameraMode(null);
     router.replace('/dashboard');
   };
@@ -266,7 +244,7 @@ export default function OnboardingScreen() {
                 {cameraMode === 'pair' ? 'Apunta al QR del registro' : 'Apunta al QR del sitio'}
               </Text>
               <Text style={styles.instructionsSubtitle}>
-                {error || 'Lo leemos en cuanto esté dentro del marco'}
+                {error || status || 'Lo leemos en cuanto esté dentro del marco'}
               </Text>
             </View>
           </View>

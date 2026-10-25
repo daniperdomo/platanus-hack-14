@@ -118,6 +118,34 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS api_clients (
+                client_id TEXT PRIMARY KEY,
+                secret_hash TEXT NOT NULL,
+                name TEXT NOT NULL,
+                origins TEXT[] NOT NULL,
+                redirect_uri TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        conn.execute(
+            """
+            ALTER TABLE auth_requests
+            ADD COLUMN IF NOT EXISTS client_id TEXT
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS push_tokens (
+                token TEXT PRIMARY KEY,
+                credential_id UUID NOT NULL
+                    REFERENCES identities (credential_id) ON DELETE CASCADE,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
 
 
 def document_exists(document_hash: str) -> bool:
@@ -171,6 +199,7 @@ def create_auth_request(
     fields: Optional[list] = None,
     kind: str = "third_party",
     credential_id: Optional[str] = None,
+    client_id: Optional[str] = None,
 ) -> str:
     request_id = uuid.uuid4()
     owner = uuid.UUID(str(credential_id)) if credential_id else None
@@ -179,9 +208,9 @@ def create_auth_request(
             """
             INSERT INTO auth_requests (
                 id, client_name, client_domain, rules, field_meta, challenge,
-                kind, credential_id, expires_at
+                kind, credential_id, client_id, expires_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW() + make_interval(secs => %s))
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW() + make_interval(secs => %s))
             """,
             (
                 request_id,
@@ -192,6 +221,7 @@ def create_auth_request(
                 challenge,
                 kind,
                 owner,
+                client_id,
                 ttl_seconds,
             ),
         )
@@ -205,7 +235,8 @@ def get_auth_request(request_id: uuid.UUID) -> Optional[dict]:
             SELECT client_name, client_domain, rules, field_meta, challenge,
                    disclosed_claims, credential_id, kind,
                    approved_at, consumed_at, expires_at <= NOW(),
-                   GREATEST(0, EXTRACT(EPOCH FROM (expires_at - NOW())))
+                   GREATEST(0, EXTRACT(EPOCH FROM (expires_at - NOW()))),
+                   client_id
             FROM auth_requests
             WHERE id = %s
             """,
@@ -230,6 +261,7 @@ def get_auth_request(request_id: uuid.UUID) -> Optional[dict]:
         "consumed": row[9] is not None,
         "expired": row[10],
         "expires_in": int(row[11]),
+        "client_id": row[12],
     }
 
 
@@ -294,14 +326,19 @@ def consume_auth_request(request_id: uuid.UUID) -> Optional[dict]:
               AND approved_at IS NOT NULL
               AND consumed_at IS NULL
               AND expires_at > NOW()
-            RETURNING client_name, disclosed_claims
+            RETURNING client_name, disclosed_claims, credential_id, client_id
             """,
             (request_id,),
         ).fetchone()
         conn.commit()
     if row is None:
         return None
-    return {"client_name": row[0], "claims": row[1]}
+    return {
+        "client_name": row[0],
+        "claims": row[1],
+        "credential_id": str(row[2]) if row[2] else None,
+        "client_id": row[3],
+    }
 
 
 def list_connections(credential_id: uuid.UUID) -> List[dict]:
@@ -475,3 +512,59 @@ def claim_pairing(pairing_id: uuid.UUID) -> Optional[str]:
     if row is None:
         return None
     return row[0]
+
+
+def create_client(
+    client_id: str, secret_hash: str, name: str, origins: List[str], redirect_uri: str
+) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO api_clients (client_id, secret_hash, name, origins, redirect_uri)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (client_id, secret_hash, name, origins, redirect_uri),
+        )
+
+
+def get_client(client_id: str) -> Optional[dict]:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT client_id, secret_hash, name, origins, redirect_uri
+            FROM api_clients
+            WHERE client_id = %s
+            """,
+            (client_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "client_id": row[0],
+        "secret_hash": row[1],
+        "name": row[2],
+        "origins": list(row[3]),
+        "redirect_uri": row[4] or "",
+    }
+
+
+def save_push_token(credential_id: uuid.UUID, token: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO push_tokens (token, credential_id)
+            VALUES (%s, %s)
+            ON CONFLICT (token)
+            DO UPDATE SET credential_id = EXCLUDED.credential_id, updated_at = NOW()
+            """,
+            (token, credential_id),
+        )
+
+
+def list_push_tokens(credential_id: uuid.UUID) -> List[str]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT token FROM push_tokens WHERE credential_id = %s",
+            (credential_id,),
+        ).fetchall()
+    return [row[0] for row in rows]

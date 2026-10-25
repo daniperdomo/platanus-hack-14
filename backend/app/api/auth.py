@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import jwt
 import psycopg
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.passwords import hash_password, verify_password
@@ -17,7 +17,7 @@ from app.core.security import (
     verify_device_signature,
 )
 from app.db import database
-from app.services import hashing
+from app.services import hashing, push
 
 router = APIRouter(prefix="/auth")
 
@@ -146,6 +146,10 @@ class SessionOut(BaseModel):
 class AccountOut(BaseModel):
     username: str
     paired: bool
+
+
+class PushTokenIn(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
 
 
 def _fields_of(request: dict) -> List[dict]:
@@ -369,8 +373,14 @@ def reject_request(request_id: str, body: ApproveIn):
 @router.post("/requests/{request_id}/token", response_model=TokenOut)
 def deliver_token(request_id: str):
     request = _load_request(request_id)
-    if (request.get("kind") or "third_party") == "login":
+    kind = request.get("kind") or "third_party"
+    if kind == "login":
         raise HTTPException(status_code=400, detail="Esta solicitud es un inicio de sesión de ZeroID.")
+    if kind == "sign_in":
+        raise HTTPException(
+            status_code=400,
+            detail="Las solicitudes del SDK se canjean con tu client secret en /clients/{client_id}/exchange.",
+        )
     if request["consumed"] and not request["approved"]:
         return TokenOut(status="rejected")
     if request["expired"] and not request["approved"]:
@@ -504,7 +514,7 @@ def create_account(body: AccountIn):
 
 
 @router.post("/login", response_model=AuthRequestOut)
-def login(body: LoginIn):
+def login(body: LoginIn, background: BackgroundTasks):
     username = body.username.strip().lower()
     account = database.get_account_by_username(username) if username else None
     if account is None or not verify_password(body.password, account["password_hash"]):
@@ -520,9 +530,23 @@ def login(body: LoginIn):
         kind="login",
         credential_id=account["credential_id"],
     )
+    background.add_task(
+        push.notify_credential,
+        account["credential_id"],
+        "Inicio de sesión en ZeroID",
+        "¿Eres tú quien intenta entrar a tu bóveda?",
+        {"request_id": request_id},
+    )
     return AuthRequestOut(
         request_id=request_id, challenge=challenge, expires_in=REQUEST_TTL_SECONDS
     )
+
+
+@router.post("/push-token", response_model=ApproveOut)
+def register_push_token(body: PushTokenIn, authorization: Optional[str] = Header(default=None)):
+    payload = _bearer(authorization)
+    database.save_push_token(uuid.UUID(payload["sub"]), body.token.strip())
+    return ApproveOut(status="registered")
 
 
 @router.get("/accounts/me", response_model=AccountOut)

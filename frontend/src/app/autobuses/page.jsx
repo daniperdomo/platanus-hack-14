@@ -1,20 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
 import SignInButton from "@/components/zeroid/SignInButton";
-import { collectAuthToken, createAuthRequest } from "@/lib/api";
 import { DATA_FIELDS } from "@/lib/mockData";
 
 const SESSION_KEY = "expreso.session";
-
-const CLIENT = {
-  id: "expreso-caribe",
-  name: "Expreso Caribe",
-  domain: "expresocaribe.com",
-  color: "#1d4ed8",
-  retention: "Boletos: 1 año tras el viaje. Contacto: hasta que cierres tu cuenta.",
+const CLIENT_ID = process.env.NEXT_PUBLIC_EXPRESO_CLIENT_ID;
+const SCOPES = ["persona_real_unica", "mayor_de_edad"];
+const SDK_ERRORS = {
+  rejected: "Rechazaste el inicio de sesión desde tu teléfono.",
+  closed: "Cerraste la ventana de ZeroID antes de terminar.",
+  expired: "Pasaron 5 minutos sin respuesta. Vuelve a intentarlo.",
+  popup_blocked: "Tu navegador bloqueó la ventana de ZeroID. Permite las ventanas emergentes.",
 };
+
+function loadSdk() {
+  if (window.ZeroID) return Promise.resolve(window.ZeroID);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "/sdk/zeroid.js";
+    script.onload = () => resolve(window.ZeroID);
+    script.onerror = () => reject(new Error("No pudimos cargar el SDK de ZeroID."));
+    document.head.appendChild(script);
+  });
+}
 
 const REQUIRED = [
   {
@@ -68,76 +77,65 @@ function asFields(items, required) {
   }));
 }
 
+async function exchange(requestId) {
+  const response = await fetch("/api/expreso/sesion", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof body.detail === "string" ? body.detail : "No pudimos completar el acceso.");
+  }
+  return body;
+}
+
 export default function AutobusesPage() {
   const [session, setSession] = useState(null);
   const [modal, setModal] = useState(null);
   const [reserved, setReserved] = useState([]);
-  const [qr, setQr] = useState("");
   const [waitError, setWaitError] = useState("");
-  const pendingId = useRef(null);
-  const poll = useRef(null);
+  const attempt = useRef(0);
 
   useEffect(() => {
     const raw = window.localStorage.getItem(SESSION_KEY);
     if (raw) setSession(JSON.parse(raw));
-    return () => clearInterval(poll.current);
+    loadSdk()
+      .then((sdk) => {
+        if (CLIENT_ID) sdk.init({ clientId: CLIENT_ID, scopes: SCOPES });
+      })
+      .catch(() => undefined);
   }, []);
 
   async function signInWithZeroId() {
+    const current = ++attempt.current;
     setWaitError("");
-    setQr("");
+    if (!CLIENT_ID) {
+      setWaitError("Falta configurar Expreso Caribe. Corre python -m scripts.demo_client en backend/.");
+      setModal("rejected");
+      return;
+    }
     setModal("waiting");
     try {
-      const created = await createAuthRequest({
-        clientName: CLIENT.name,
-        clientDomain: CLIENT.domain,
+      const sdk = await loadSdk();
+      const { requestId } = await sdk.signIn({
         fields: [...asFields(REQUIRED, true), ...asFields(OPTIONAL, false)],
       });
-      pendingId.current = created.request_id;
-      setQr(
-        await QRCode.toDataURL(`zeroid://approve?request=${created.request_id}`, {
-          margin: 1,
-          width: 220,
-        })
-      );
-      const started = Date.now();
-      poll.current = setInterval(async () => {
-        try {
-          const result = await collectAuthToken(created.request_id);
-          if (result.status === "rejected") {
-            clearInterval(poll.current);
-            pendingId.current = null;
-            setModal("rejected");
-            return;
-          }
-          if (result.status !== "delivered") {
-            if (Date.now() - started > created.expires_in * 1000) {
-              clearInterval(poll.current);
-              setModal("rejected");
-            }
-            return;
-          }
-          clearInterval(poll.current);
-          pendingId.current = null;
-          const user = { data: result.claims, at: new Date().toISOString() };
-          window.localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-          setSession(user);
-          setModal(null);
-        } catch (err) {
-          clearInterval(poll.current);
-          setWaitError(err?.message ?? "No pudimos completar el acceso.");
-          setModal("rejected");
-        }
-      }, 2000);
+      const result = await exchange(requestId);
+      if (current !== attempt.current) return;
+      const user = { subject: result.subject, data: result.claims, at: new Date().toISOString() };
+      window.localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+      setSession(user);
+      setModal(null);
     } catch (err) {
-      setWaitError(err?.message ?? "No pudimos pedir acceso a ZeroID.");
+      if (current !== attempt.current) return;
+      setWaitError(SDK_ERRORS[err?.code] ?? err?.message ?? "No pudimos completar el acceso.");
       setModal("rejected");
     }
   }
 
   function closeModal() {
-    clearInterval(poll.current);
-    pendingId.current = null;
+    attempt.current += 1;
     setModal(null);
   }
 
@@ -242,9 +240,15 @@ export default function AutobusesPage() {
               {Object.entries(session.data).map(([field, value]) => (
                 <div key={field}>
                   <dt>{DATA_FIELDS[field] ?? field}</dt>
-                  <dd>{value}</dd>
+                  <dd>{typeof value === "boolean" ? (value ? "Sí" : "No") : value}</dd>
                 </div>
               ))}
+              {session.subject && (
+                <div>
+                  <dt>Identificador en Expreso Caribe</dt>
+                  <dd className="bus-subject">{session.subject.slice(0, 16)}…</dd>
+                </div>
+              )}
             </dl>
           </section>
         )}
@@ -274,12 +278,12 @@ export default function AutobusesPage() {
             {modal === "waiting" && (
               <>
                 <span className="bus-spinner" />
-                <h2>Confirma en la app</h2>
+                <h2>Continúa en ZeroID</h2>
                 <p className="bus-muted">
-                  Escanea este código con ZeroID. Vas a ver qué datos pide Expreso
-                  Caribe, para qué y por cuánto tiempo.
+                  Escribe tu usuario en la ventana de ZeroID y te llegará un aviso al
+                  teléfono. Ahí verás qué datos pide Expreso Caribe, para qué y por
+                  cuánto tiempo.
                 </p>
-                {qr ? <img className="bus-qr" src={qr} alt="Código para aprobar en ZeroID" /> : null}
               </>
             )}
 
