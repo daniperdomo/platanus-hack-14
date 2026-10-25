@@ -13,7 +13,7 @@ export function dataSelectionId(point: Pick<PolicyPoint, 'category' | 'label'>) 
 }
 
 function selectedIds(optional: PolicyPoint[], allowed: Record<string, boolean>) {
-  return optional.filter((point) => allowed[dataSelectionId(point)] ?? true).map(dataSelectionId);
+  return optional.filter((point) => allowed[dataSelectionId(point)] ?? false).map(dataSelectionId);
 }
 
 export default function DataSelector({ policies, onSelectionChange }: DataSelectorProps) {
@@ -22,7 +22,7 @@ export default function DataSelector({ policies, onSelectionChange }: DataSelect
     [policies]
   );
   const [allowed, setAllowed] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(optional.map((point) => [dataSelectionId(point), true]))
+    Object.fromEntries(optional.map((point) => [dataSelectionId(point), false]))
   );
   const onSelectionChangeRef = useRef(onSelectionChange);
   const { colors, hairline } = useTheme();
@@ -47,7 +47,7 @@ export default function DataSelector({ policies, onSelectionChange }: DataSelect
 
       {optional.map((point, index) => {
         const key = dataSelectionId(point);
-        const value = allowed[key] ?? true;
+        const value = allowed[key] ?? false;
         const isLast = index === optional.length - 1;
         return (
           <View key={key} style={[styles.row, isLast && styles.rowLast]}>

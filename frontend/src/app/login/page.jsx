@@ -71,7 +71,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="auth">
+    <main className="auth overflow-x-hidden p-4 md:p-8">
       <div className="auth__top">
         <Link href="/" className="nav__brand auth__brand" aria-label="ZeroID">
           <BrandLogo variant="lockup" />
@@ -80,7 +80,7 @@ export default function LoginPage() {
       </div>
 
       {step === "form" ? (
-        <div className="auth-card">
+        <div className="auth-card w-full max-w-md p-4 md:p-8">
           <h1 className="auth-card__title">Inicia sesión</h1>
           <p className="text-muted auth-card__lead">
             Después de tu contraseña, la app ZeroID de tu teléfono te pide
@@ -124,7 +124,7 @@ export default function LoginPage() {
           </button>
         </div>
       ) : (
-        <div className="auth-card">
+        <div className="auth-card w-full max-w-md p-4 md:p-8">
           <span className="pulse-dot" />
           <h1 className="auth-card__title">Revisa tu teléfono</h1>
           <p className="text-muted auth-card__lead">

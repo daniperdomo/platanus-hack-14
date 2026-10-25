@@ -262,7 +262,7 @@ export default function LivenessCapture({ onCapture, onReset, autoStart = false 
         </p>
       ) : null}
 
-      <div className="liveness__actions">
+      <div className="liveness__actions flex flex-col md:flex-row">
         {phase === "idle" || phase === "done" ? (
           <button type="button" className="btn btn--primary" onClick={begin}>
             {phase === "done" ? "Repetir prueba" : "Iniciar prueba de vida"}

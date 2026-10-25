@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+/**
+ * Sitio cliente que integra el SDK público (`/sdk/zeroid.js`):
+ * popup → /conectar → aprobación en la app móvil → canje en /api/expreso/sesion.
+ */
+import { useEffect, useMemo, useRef, useState } from "react";
 import SignInButton from "@/components/zeroid/SignInButton";
 import { DATA_FIELDS } from "@/lib/mockData";
 
@@ -123,6 +127,7 @@ export default function AutobusesPage() {
       });
       const result = await exchange(requestId);
       if (current !== attempt.current) return;
+      console.log("🏢 [Cliente B2B] Datos recibidos de ZeroID:", result.claims);
       const user = { subject: result.subject, data: result.claims, at: new Date().toISOString() };
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(user));
       setSession(user);
@@ -154,6 +159,13 @@ export default function AutobusesPage() {
   }
 
   const firstName = session?.data.nombre?.split(" ")[0];
+
+  const optionalNotShared = useMemo(() => {
+    if (!session?.data) return [];
+    return OPTIONAL.filter((item) => !(item.field in session.data)).map(
+      (item) => DATA_FIELDS[item.field] ?? item.field
+    );
+  }, [session]);
 
   return (
     <>
@@ -250,6 +262,11 @@ export default function AutobusesPage() {
                 </div>
               )}
             </dl>
+            {optionalNotShared.length > 0 && (
+              <p className="bus-muted bus-received__aside">
+                No recibimos: {optionalNotShared.join(", ")}.
+              </p>
+            )}
           </section>
         )}
       </main>

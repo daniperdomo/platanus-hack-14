@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { getAuthRequest, getClient, startSignIn } from "@/lib/api";
+import BrandLogo from "@/components/BrandLogo";
 import { DATA_FIELDS } from "@/lib/mockData";
 
 const SCOPE_LABELS = {
@@ -139,8 +140,7 @@ export default function ConnectPage() {
     <main className="auth connect">
       <div className="auth__top">
         <span className="nav__brand auth__brand">
-          <span className="logo-mark" />
-          ZeroID
+          <BrandLogo variant="lockup" />
         </span>
       </div>
 

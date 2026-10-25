@@ -53,7 +53,7 @@ export default function BusinessSection() {
           ))}
         </div>
 
-        <div className="integration">
+        <div className="integration flex flex-col md:flex-row">
           <div className="integration__copy">
             <span className="section-tag">Integración en minutos</span>
             <h3>Declara qué necesitas y para qué. Nosotros hacemos el resto.</h3>

@@ -7,7 +7,7 @@ const requested = [
 export default function Hero() {
   return (
     <section className="hero">
-      <div className="container hero__grid">
+      <div className="container hero__grid flex flex-col md:flex-row">
         <div className="hero__content">
           <h1 className="hero__title">
             Tu identidad verificada.{" "}

@@ -56,7 +56,7 @@ export default function VaultFlow() {
         <p className="liveness__status">
           Primero necesitamos la foto de tu documento.
         </p>
-        <div className="liveness__actions">
+        <div className="liveness__actions flex flex-col md:flex-row">
           <Link href="/registrar" className="btn btn--primary">
             Fotografiar documento
           </Link>

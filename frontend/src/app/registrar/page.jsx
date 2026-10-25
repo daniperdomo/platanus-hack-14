@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 import DocumentCapture from "@/components/DocumentCapture";
 
 export const metadata = {
@@ -10,16 +11,15 @@ export const metadata = {
 export default function RegistrarPage() {
   return (
     <main className="flow">
-      <div className="container flow__bar">
-        <Link href="/" className="nav__brand">
-          <span className="logo-mark" />
-          ZeroID
-        </Link>
-        <Link href="/" className="flow__back">
-          ← Volver al inicio
-        </Link>
-      </div>
       <div className="container">
+        <header className="flow__bar">
+          <Link href="/" className="nav__brand" aria-label="ZeroID">
+            <BrandLogo variant="lockup" />
+          </Link>
+          <Link href="/" className="flow__back">
+            ← Volver al inicio
+          </Link>
+        </header>
         <DocumentCapture />
       </div>
     </main>

@@ -16,6 +16,7 @@ export const DATA_FIELDS = {
   documento: "Número de documento",
   direccion: "Dirección",
   persona_real_unica: "Persona real y única",
+  ubicacion: "Ubicación",
 };
 
 export const storedData = [

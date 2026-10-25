@@ -35,14 +35,14 @@ export default function DashboardLayout({ children }) {
 
   return (
     <SessionContext.Provider value={session}>
-      <div className="dashboard">
+      <div className="dashboard flex flex-col md:flex-row w-full overflow-x-hidden">
         <Sidebar session={session} onLogout={logout} />
-        <div className="dashboard__shell">
+        <div className="dashboard__shell w-full min-w-0">
           <header className="dashboard-topbar">
             <ThemeSwitcher />
             <UserAvatar />
           </header>
-          <main className={`dashboard__main${wide ? " dashboard__main--wide" : ""}`}>{children}</main>
+          <main className={`dashboard__main w-full p-4 md:p-8${wide ? " dashboard__main--wide" : ""}`}>{children}</main>
         </div>
         {request && !session.guest && (
           <div className="modal" role="dialog" aria-modal="true">

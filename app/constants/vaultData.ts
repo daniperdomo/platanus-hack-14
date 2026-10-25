@@ -8,4 +8,5 @@ export const DATA_FIELDS: Record<string, string> = {
   documento: 'Número de documento',
   direccion: 'Dirección',
   persona_real_unica: 'Persona real y única',
+  ubicacion: 'Ubicación',
 };

@@ -8,7 +8,7 @@ export default function Solution({ tag, title, description, exposed, revealed, p
           <p className="section__desc">{description}</p>
         </div>
 
-        <div className="compare">
+        <div className="compare flex flex-col md:flex-row">
           <div className="compare__side">
             <span className="compare__label">Lo que entregas hoy</span>
             <ul className="compare__list compare__list--exposed">

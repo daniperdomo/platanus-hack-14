@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DIMENSIONS, lastScan, POLICY_STATUS_LABEL } from "@/lib/trustData";
 import LevelBadge from "./LevelBadge";
 import Trend from "./Trend";
@@ -30,6 +30,11 @@ function CompanyAvatar({ src, name }) {
 
 export default function CompanyDetail({ company }) {
   const [scoringOpen, setScoringOpen] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(company.grade !== "D");
+
+  useEffect(() => {
+    setLegalOpen(company.grade !== "D");
+  }, [company.id, company.grade]);
 
   return (
     <aside className="company-detail" aria-live="polite">
@@ -75,29 +80,40 @@ export default function CompanyDetail({ company }) {
       </div>
 
       <section className="dossier-legal">
-        <h3 className="dossier-legal__title">Desglose Legal</h3>
-        <ul className="breakdown">
-          {DIMENSIONS.map((dimension) => {
-            const value = company.scores[dimension.key];
-            return (
-              <li key={dimension.key}>
-                <div className="breakdown__label">
-                  <span>{dimension.label}</span>
-                  <span className="breakdown__value">{value}</span>
-                </div>
-                <span className="breakdown__track">
-                  <span
-                    className="breakdown__fill"
-                    style={{ width: `${value}%`, background: barColor(value) }}
-                  />
-                </span>
-                {company.justifications?.[dimension.key] ? (
-                  <p className="breakdown__note">{company.justifications[dimension.key]}</p>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+        <details
+          key={company.id}
+          className={`dossier-legal__panel${company.grade === "D" ? " is-critical" : ""}`}
+          open={legalOpen}
+          onToggle={(event) => setLegalOpen(event.currentTarget.open)}
+        >
+          <summary className="dossier-legal__summary">
+            {company.grade === "D"
+              ? "Prácticas de privacidad riesgosas. Toca para ver el desglose."
+              : "Desglose Legal"}
+          </summary>
+          <ul className="breakdown">
+            {DIMENSIONS.map((dimension) => {
+              const value = company.scores[dimension.key];
+              return (
+                <li key={dimension.key}>
+                  <div className="breakdown__label">
+                    <span>{dimension.label}</span>
+                    <span className="breakdown__value">{value}</span>
+                  </div>
+                  <span className="breakdown__track">
+                    <span
+                      className="breakdown__fill"
+                      style={{ width: `${value}%`, background: barColor(value) }}
+                    />
+                  </span>
+                  {company.justifications?.[dimension.key] ? (
+                    <p className="breakdown__note">{company.justifications[dimension.key]}</p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </details>
       </section>
 
       <div className="scoring-method">

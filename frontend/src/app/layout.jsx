@@ -24,6 +24,8 @@ export const metadata = {
 };
 
 export const viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#FAFAFA" },
     { media: "(prefers-color-scheme: dark)", color: "#0D0E11" },
@@ -32,8 +34,8 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
-      <body>
+    <html lang="es" className={`${geistSans.variable} ${geistMono.variable} overflow-x-hidden`} suppressHydrationWarning>
+      <body className="overflow-x-hidden">
         <Script id="zeroid-theme" strategy="beforeInteractive">
           {THEME_BOOTSTRAP}
         </Script>

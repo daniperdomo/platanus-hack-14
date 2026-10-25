@@ -1,5 +1,5 @@
 import { useMemo, useState, type ComponentProps } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import {
   DIMENSIONS,
@@ -127,6 +127,7 @@ export default function PrivacyDossier({ companyData }: PrivacyDossierProps) {
   } = companyData;
 
   const isCritical = trustScore === 'D';
+  const [legalOpen, setLegalOpen] = useState(!isCritical);
   const scoreTint =
     trustScore === 'D' ? REQUIRED_COLOR : trustScore === 'C' ? colors.textMuted : colors.text;
 
@@ -191,31 +192,44 @@ export default function PrivacyDossier({ companyData }: PrivacyDossierProps) {
 
       {scores ? (
         <View style={styles.legal}>
-          <Text style={styles.legalTitle}>Desglose Legal</Text>
-          {DIMENSIONS.map((dimension) => {
-            const value = scores[dimension.key];
-            return (
-              <View key={dimension.key} style={styles.metric}>
-                <View style={styles.metricHead}>
-                  <Text style={styles.metricLabel}>{dimension.label}</Text>
-                  <Text style={styles.metricValue}>{value}</Text>
-                </View>
-                <View style={styles.track}>
-                  <View
-                    style={[
-                      styles.fill,
-                      { width: `${Math.max(0, Math.min(100, value))}%`, backgroundColor: barColor(value) },
-                    ]}
-                  />
-                </View>
-                {justifications?.[dimension.key] ? (
-                  <Text style={styles.metricNote} numberOfLines={2}>
-                    {justifications[dimension.key]}
-                  </Text>
-                ) : null}
-              </View>
-            );
-          })}
+          <TouchableOpacity
+            style={styles.legalToggle}
+            onPress={() => setLegalOpen((open) => !open)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.legalTitle, isCritical && styles.legalTitleCritical]}>
+              {isCritical
+                ? 'Prácticas de privacidad riesgosas. Toca para ver el desglose.'
+                : 'Desglose Legal'}
+            </Text>
+            <Text style={styles.legalChevron}>{legalOpen ? '−' : '+'}</Text>
+          </TouchableOpacity>
+          {legalOpen
+            ? DIMENSIONS.map((dimension) => {
+                const value = scores[dimension.key];
+                return (
+                  <View key={dimension.key} style={styles.metric}>
+                    <View style={styles.metricHead}>
+                      <Text style={styles.metricLabel}>{dimension.label}</Text>
+                      <Text style={styles.metricValue}>{value}</Text>
+                    </View>
+                    <View style={styles.track}>
+                      <View
+                        style={[
+                          styles.fill,
+                          { width: `${Math.max(0, Math.min(100, value))}%`, backgroundColor: barColor(value) },
+                        ]}
+                      />
+                    </View>
+                    {justifications?.[dimension.key] ? (
+                      <Text style={styles.metricNote} numberOfLines={2}>
+                        {justifications[dimension.key]}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })
+            : null}
         </View>
       ) : null}
 
@@ -383,11 +397,29 @@ function createStyles(colors: ThemeColors, hairline: number) {
       borderTopColor: colors.border,
       gap: 14,
     },
+    legalToggle: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+    },
     legalTitle: {
       fontFamily: fonts.semibold,
       fontSize: 12,
       letterSpacing: 0.4,
       textTransform: 'uppercase',
+      color: colors.textMuted,
+      flex: 1,
+    },
+    legalTitleCritical: {
+      color: REQUIRED_COLOR,
+      textTransform: 'none',
+      letterSpacing: 0,
+      fontSize: 13,
+    },
+    legalChevron: {
+      fontFamily: fonts.mono,
+      fontSize: 18,
       color: colors.textMuted,
     },
     metric: {

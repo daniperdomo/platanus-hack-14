@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 import VaultFlow from "@/components/VaultFlow";
 
 export const metadata = {
@@ -10,16 +11,15 @@ export const metadata = {
 export default function BovedaPage() {
   return (
     <main className="flow">
-      <div className="container flow__bar">
-        <Link href="/" className="nav__brand">
-          <span className="logo-mark" />
-          ZeroID
-        </Link>
-        <Link href="/registrar" className="flow__back">
-          ← Volver al pasaporte
-        </Link>
-      </div>
       <div className="container">
+        <header className="flow__bar">
+          <Link href="/" className="nav__brand" aria-label="ZeroID">
+            <BrandLogo variant="lockup" />
+          </Link>
+          <Link href="/registrar" className="flow__back">
+            ← Volver al pasaporte
+          </Link>
+        </header>
         <div className="register">
           <header className="register__intro">
             <span className="section-tag">Bóveda</span>

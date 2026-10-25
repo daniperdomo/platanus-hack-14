@@ -463,6 +463,37 @@ const companies = [
       policy("Comportamiento", "Actividad fuera de la app", "required", "Pixel y eventos de sitios asociados para anuncios.", 730),
     ],
   },
+  {
+    id: "vortex",
+    name: "Vortex App",
+    domain: "vortex.app",
+    category: "Tecnología",
+    trend: -8,
+    ...oracle(
+      { seguridad: 22, minimizacion: 18, transparencia: 16, derechos: 20, retencion: 10, terceros: 5 },
+      {
+        seguridad: "Sin 2FA ni cifrado declarado. La cuenta es un vector abierto.",
+        minimizacion: "Pide ubicación, teléfono y actividad fuera de la app sin un propósito acotado.",
+        transparencia: "La política es un párrafo genérico. No lista tratamientos ni destinatarios.",
+        derechos: "No ofrece descarga, corrección ni borrado. El soporte no responde ARCO.",
+        retencion: "Conserva todo de forma indefinida. No declara plazos de borrado.",
+        terceros: "Vende perfiles y ubicación a una red opaca de brokers y anunciantes.",
+      },
+      25,
+      "D"
+    ),
+    signatureAlgorithm: "RS256",
+    incidents: [
+      { year: 2025, text: "Filtración de ubicaciones en tiempo real de 2,1 millones de cuentas." },
+      { year: 2026, text: "Venta de listados de teléfonos a brokers sin base legal ni opt-out." },
+    ],
+    policies: [
+      policy("Identidad", "Nombre", "required", "Crea el perfil y lo empaqueta como dato de audiencia.", 730),
+      policy("Ubicación", "Ubicación", "optional", "Rastrea en segundo plano para anuncios y reventa.", 730),
+      policy("Contacto", "Teléfono", "optional", "Comparte el número con brokers de datos.", 730),
+      policy("Comportamiento", "Actividad fuera de la app", "required", "Pixel y eventos de sitios asociados.", 730),
+    ],
+  },
 ];
 
 export function trustScore(scores) {
@@ -497,6 +528,14 @@ export const trustCompanies = companies.map((company) => ({
 
 export function companyById(id) {
   return trustCompanies.find((company) => company.id === id);
+}
+
+export function companyForDomain(domain) {
+  const host = domain?.trim().toLowerCase().replace(/^www\./, "");
+  if (!host) return undefined;
+  return trustCompanies.find(
+    (company) => host === company.domain || host.endsWith(`.${company.domain}`)
+  );
 }
 
 export const lastScan = "2026-10-24 06:00";

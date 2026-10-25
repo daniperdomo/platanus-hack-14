@@ -90,16 +90,20 @@ function record(request, approved, fields) {
   write(CONNECTIONS_KEY, connections);
 }
 
-export function respond(request, { approved, fields = [] }) {
-  window.localStorage.removeItem(PENDING_KEY);
-  record(request, approved, approved ? fields : []);
-
+export function buildAuthorizedData(fields) {
   const values = {
     ...Object.fromEntries(storedData.map((item) => [item.field, item.value])),
     mayor_de_edad: "Sí",
     persona_real_unica: "Verificada",
   };
-  const data = Object.fromEntries(fields.map((field) => [field, values[field]]));
+  return Object.fromEntries(fields.map((field) => [field, values[field]]));
+}
+
+export function respond(request, { approved, fields = [] }) {
+  window.localStorage.removeItem(PENDING_KEY);
+  record(request, approved, approved ? fields : []);
+
+  const data = approved ? buildAuthorizedData(fields) : {};
   broadcast({ type: "resolved", id: request.id });
   broadcast({ type: "response", id: request.id, approved, data: approved ? data : {} });
 }

@@ -9,9 +9,11 @@ async function blobToFile(blob, name) {
 export default function CameraCapture({ onCapture }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const fileRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [live, setLive] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState("");
+  const [photo, setPhoto] = useState(null);
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -20,7 +22,13 @@ export default function CameraCapture({ onCapture }) {
     setLive(false);
   }
 
-  useEffect(() => stopCamera, []);
+  useEffect(() => {
+    return () => {
+      stopCamera();
+      if (preview) URL.revokeObjectURL(preview);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -36,6 +44,17 @@ export default function CameraCapture({ onCapture }) {
       });
     }
   }, [live]);
+
+  function applyFile(file) {
+    if (!file) return;
+    stopCamera();
+    setPhoto(file);
+    setPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+    onCapture(file);
+  }
 
   async function startCamera() {
     setError("");
@@ -73,33 +92,36 @@ export default function CameraCapture({ onCapture }) {
     const blob = await new Promise((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", 0.92)
     );
-    stopCamera();
-    onCapture(await blobToFile(blob, "pasaporte.jpg"));
+    applyFile(await blobToFile(blob, "pasaporte.jpg"));
   }
 
-  function onFileChange(event) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    stopCamera();
-    onCapture(file);
+  function onFileChange(e) {
+    const file = e.target.files[0];
+    e.target.value = "";
+    applyFile(file);
   }
 
   return (
-    <div className="camera">
+    <div className="camera flex flex-col w-full">
       <div className="camera__stage camera__stage--pasaporte">
-        <video
-          ref={videoRef}
-          className="camera__video"
-          playsInline
-          muted
-          autoPlay
-          hidden={!live}
-        />
-        {live ? null : (
-          <p className="camera__placeholder">Encuadra la página de datos del pasaporte</p>
+        {preview ? (
+          <img src={preview} alt="Foto seleccionada" className="camera__preview" />
+        ) : (
+          <>
+            <video
+              ref={videoRef}
+              className="camera__video"
+              playsInline
+              muted
+              autoPlay
+              hidden={!live}
+            />
+            {live ? null : (
+              <p className="camera__placeholder">Encuadra la página de datos del pasaporte</p>
+            )}
+            <div className="camera__frame" aria-hidden="true" />
+          </>
         )}
-        <div className="camera__frame" aria-hidden="true" />
       </div>
 
       <p className="camera__hint">
@@ -112,7 +134,13 @@ export default function CameraCapture({ onCapture }) {
         </p>
       ) : null}
 
-      <div className="camera__actions">
+      {photo ? (
+        <p className="camera__meta">
+          {photo.name} · {(photo.size / 1024).toFixed(0)} KB
+        </p>
+      ) : null}
+
+      <div className="camera__actions flex flex-col md:flex-row">
         {live ? (
           <button type="button" className="btn btn--primary" onClick={takePhoto}>
             Tomar foto
@@ -125,16 +153,15 @@ export default function CameraCapture({ onCapture }) {
         <button
           type="button"
           className="btn btn--secondary"
-          onClick={() => fileRef.current?.click()}
+          onClick={() => fileInputRef.current.click()}
         >
-          Subir una foto
+          Subir Foto
         </button>
         <input
-          ref={fileRef}
           type="file"
           accept="image/*"
-          capture="environment"
-          hidden
+          className="hidden"
+          ref={fileInputRef}
           onChange={onFileChange}
         />
       </div>

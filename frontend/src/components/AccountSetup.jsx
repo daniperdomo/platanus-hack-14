@@ -120,7 +120,7 @@ export default function AccountSetup({ token, profile }) {
           en 5 minutos.
         </p>
         <img className="pair-qr" src={qr} alt="Código para vincular la app ZeroID" />
-        <div className="liveness__actions">
+        <div className="liveness__actions flex flex-col md:flex-row">
           <button
             type="button"
             className="btn btn--secondary"

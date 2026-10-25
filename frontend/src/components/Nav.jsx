@@ -17,7 +17,7 @@ export default function Nav() {
 
   return (
     <header className={`nav${scrolled ? " is-scrolled" : ""}`} id="nav">
-      <div className="container nav__inner">
+      <div className="container nav__inner flex flex-row">
         <Link href="/" className="nav__brand" aria-label="ZeroID">
           <BrandLogo variant="lockup" />
         </Link>

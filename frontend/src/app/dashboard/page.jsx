@@ -38,7 +38,7 @@ export default function DashboardHome() {
       </div>
 
       <section className="panel">
-        <div className="panel__head">
+        <div className="panel__head flex flex-col md:flex-row">
           <h2>Actividad reciente</h2>
           <Link href="/dashboard/actividad" className="panel__link">
             Ver todo

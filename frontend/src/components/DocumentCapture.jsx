@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CameraCapture from "./CameraCapture";
+import ZeroLoader from "./ZeroLoader";
 import { checkDocument } from "@/lib/api";
 import { validateDocumentImage } from "@/lib/documentImage";
 import { DOCUMENT_LONG_SIDE, fileToJpeg } from "@/lib/image";
@@ -62,13 +63,11 @@ export default function DocumentCapture() {
 
       <div className="register__panel">
         {preview ? (
-          <div className="preview">
+          <div className={`preview${status === "checking" ? " is-checking" : ""}`}>
             <img src={preview} alt="Foto del pasaporte capturada" />
 
             {status === "checking" ? (
-              <p className="cta-status" role="status">
-                Verificando tu pasaporte…
-              </p>
+              <ZeroLoader label="Verificando tu pasaporte…" />
             ) : null}
 
             {status === "ok" ? (
@@ -91,7 +90,7 @@ export default function DocumentCapture() {
                     </div>
                   ))}
                 </div>
-                <div className="camera__actions">
+                <div className="camera__actions flex flex-col md:flex-row">
                   <button type="button" className="btn btn--secondary" onClick={retake}>
                     Volver a tomar
                   </button>
@@ -111,7 +110,7 @@ export default function DocumentCapture() {
                 <p className="cta-status is-error" role="alert">
                   {error}
                 </p>
-                <div className="camera__actions">
+                <div className="camera__actions flex flex-col md:flex-row">
                   <button type="button" className="btn btn--primary" onClick={retake}>
                     Volver a tomar
                   </button>
