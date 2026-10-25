@@ -48,7 +48,11 @@ sequenceDiagram
 
 ## Despliegue
 
-- `frontend/` → Vercel, con `frontend` como *Root Directory*.
-- `backend/` → Render, usando `backend/Dockerfile` con `backend` como contexto.
-- Ambos se conectan al repositorio personal espejo, porque Vercel y Render no
-  pueden acceder al repo de la organización.
+- `frontend/` → Vercel, con `frontend` como *Root Directory*, conectado al
+  repositorio personal espejo porque Vercel no puede acceder al repo de la
+  organización.
+- `backend/` → DigitalOcean App Platform, desde la imagen de `backend/Dockerfile`
+  publicada en el Container Registry de DigitalOcean.
+- Base de datos → Neon (Postgres con pgvector).
+
+El detalle y los pasos para publicar cambios están en [`despliegue.md`](despliegue.md).

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DEMO_URL } from "@/lib/demo";
 
 export default function Waitlist() {
   return (
@@ -34,9 +35,9 @@ export default function Waitlist() {
             <Link href="/empresas/solicitar-api" className="btn btn--primary">
               Solicitar API
             </Link>
-            <Link href="/autobuses" className="cta-card__link">
+            <a href={DEMO_URL} className="cta-card__link">
               Ver demo en vivo →
-            </Link>
+            </a>
           </article>
         </div>
       </div>
