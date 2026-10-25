@@ -1,35 +1,59 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { DATA_FIELDS, VAULT_CONNECTIONS, type VaultConnection } from '../../constants/vaultData';
+import { listConnections } from '../../lib/api';
+import { loadWallet } from '../../lib/wallet';
+import { DATA_FIELDS } from '../../constants/vaultData';
 import { type ThemeColors, fonts, radius, useTheme } from '../../constants/theme';
+
+type Connection = {
+  id: string;
+  client_name: string;
+  client_domain: string;
+  rules: string[];
+  created_at: string;
+};
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { colors, type, ui, scheme, hairline } = useTheme();
   const styles = useMemo(() => createStyles(colors, hairline), [colors, hairline]);
-  const [connections, setConnections] = useState<VaultConnection[]>(VAULT_CONNECTIONS);
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [paired, setPaired] = useState(true);
+  const [error, setError] = useState('');
 
-  const activeCount = connections.filter((site) => site.status === 'activa').length;
+  useFocusEffect(
+    useCallback(() => {
+      let stop = false;
+      loadWallet().then(async (wallet) => {
+        if (stop) return;
+        setPaired(Boolean(wallet));
+        if (!wallet) return;
+        try {
+          const body = await listConnections(wallet.token);
+          if (!stop) {
+            setConnections(body.connections);
+            setError('');
+          }
+        } catch (err) {
+          if (!stop) setError(err instanceof Error ? err.message : 'No pudimos leer tus accesos.');
+        }
+      });
+      return () => {
+        stop = true;
+      };
+    }, [])
+  );
 
-  const handleRevokeAccess = async (id: string) => {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    setConnections((current) =>
-      current.map((site) =>
-        site.id === id
-          ? { ...site, status: 'revocada', retention: 'Eliminado tras revocar el acceso.' }
-          : site
-      )
-    );
-  };
-
-  const handleNewLogin = async () => {
+  const handleScan = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/consent');
+    router.push(paired ? { pathname: '/', params: { scan: String(Date.now()) } } : '/');
   };
+
+  const sites = new Set(connections.map((site) => site.client_domain || site.client_name)).size;
 
   return (
     <View style={styles.container}>
@@ -40,75 +64,67 @@ export default function DashboardScreen() {
           <Text style={type.overline}>Trazabilidad</Text>
           <Text style={[type.title, styles.headerTitle]}>Sitios conectados</Text>
           <Text style={type.body}>
-            Cada sitio donde usaste ZeroID, qué datos recibe y para qué los usa.
+            Cada sitio donde usaste ZeroID y qué datos recibió.
           </Text>
         </View>
 
         <View style={styles.stats}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{activeCount}</Text>
-            <Text style={styles.statLabel}>Accesos activos</Text>
+            <Text style={styles.statValue}>{connections.length}</Text>
+            <Text style={styles.statLabel}>Accesos aprobados</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{connections.length}</Text>
+            <Text style={styles.statValue}>{sites}</Text>
             <Text style={styles.statLabel}>Sitios en bóveda</Text>
           </View>
         </View>
 
-        {connections.map((site) => {
-          const isActive = site.status === 'activa';
-          return (
-            <View key={site.id} style={[ui.card, styles.siteCard]}>
-              <View style={styles.siteHeader}>
-                <View style={styles.monogram}>
-                  <Text style={styles.monogramText}>{site.name.charAt(0)}</Text>
-                </View>
-                <View style={styles.siteInfo}>
-                  <Text style={type.heading}>{site.name}</Text>
-                  <Text style={type.caption}>{site.domain}</Text>
-                </View>
-                <View style={[ui.badge, !isActive && styles.badgeMuted]}>
-                  <Text style={[ui.badgeText, !isActive && styles.badgeMutedText]}>
-                    {isActive ? 'Activa' : 'Revocada'}
-                  </Text>
-                </View>
+        {!paired ? (
+          <Text style={styles.empty}>Este teléfono aún no está vinculado a tu ZeroID.</Text>
+        ) : null}
+        {error ? <Text style={styles.empty}>{error}</Text> : null}
+        {paired && !error && connections.length === 0 ? (
+          <Text style={styles.empty}>Todavía no autorizas ningún sitio.</Text>
+        ) : null}
+
+        {connections.map((site) => (
+          <View key={site.id} style={[ui.card, styles.siteCard]}>
+            <View style={styles.siteHeader}>
+              <View style={styles.monogram}>
+                <Text style={styles.monogramText}>{site.client_name.charAt(0)}</Text>
               </View>
-
-              <Text style={[type.overline, styles.pillsLabel]}>Datos compartidos</Text>
-              <View style={styles.pills}>
-                {site.fields.map((field) => (
-                  <View key={field} style={styles.pill}>
-                    <Text style={styles.pillText}>{DATA_FIELDS[field] ?? field}</Text>
-                  </View>
-                ))}
+              <View style={styles.siteInfo}>
+                <Text style={type.heading}>{site.client_name}</Text>
+                <Text style={type.caption}>{site.client_domain || 'Sin dominio declarado'}</Text>
               </View>
-
-              <Text style={styles.purpose}>{site.purpose}</Text>
-              <Text style={styles.meta}>
-                {site.connectedAt} · último acceso {site.lastAccess}
-              </Text>
-
-              {isActive ? (
-                <TouchableOpacity
-                  style={[ui.secondaryButton, styles.revokeButton]}
-                  onPress={() => handleRevokeAccess(site.id)}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="slash" size={14} color={colors.destructive} />
-                  <Text style={[ui.secondaryButtonText, styles.revokeButtonText]}>Revocar</Text>
-                </TouchableOpacity>
-              ) : null}
+              <View style={ui.badge}>
+                <Feather name="check" size={12} color={colors.text} />
+                <Text style={ui.badgeText}>Activa</Text>
+              </View>
             </View>
-          );
-        })}
+
+            <Text style={[type.overline, styles.pillsLabel]}>Datos compartidos</Text>
+            <View style={styles.pills}>
+              {site.rules.map((field) => (
+                <View key={field} style={styles.pill}>
+                  <Text style={styles.pillText}>{DATA_FIELDS[field] ?? field}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.meta}>{site.created_at.slice(0, 16).replace('T', ' ')}</Text>
+          </View>
+        ))}
 
         <TouchableOpacity
-          style={[ui.secondaryButton, styles.simulateButton]}
-          onPress={handleNewLogin}
+          style={[ui.secondaryButton, styles.scanButton]}
+          onPress={handleScan}
           activeOpacity={0.7}
         >
-          <Feather name="plus" size={16} color={colors.text} />
-          <Text style={ui.secondaryButtonText}>Simular nuevo login</Text>
+          <Feather name="maximize" size={16} color={colors.text} />
+          <Text style={ui.secondaryButtonText}>
+            {paired ? 'Escanear QR de un sitio' : 'Vincular este teléfono'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -159,6 +175,12 @@ function createStyles(colors: ThemeColors, hairline: number) {
       fontSize: 13,
       color: colors.textMuted,
     },
+    empty: {
+      fontFamily: fonts.regular,
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 16,
+    },
     siteCard: {
       marginBottom: 16,
       gap: 14,
@@ -187,12 +209,6 @@ function createStyles(colors: ThemeColors, hairline: number) {
       flex: 1,
       gap: 2,
     },
-    badgeMuted: {
-      opacity: 0.7,
-    },
-    badgeMutedText: {
-      color: colors.textMuted,
-    },
     pillsLabel: {
       marginTop: 4,
     },
@@ -214,26 +230,13 @@ function createStyles(colors: ThemeColors, hairline: number) {
       fontSize: 12,
       color: colors.text,
     },
-    purpose: {
-      fontFamily: fonts.regular,
-      fontSize: 14,
-      lineHeight: 20,
-      color: colors.textMuted,
-    },
     meta: {
       fontFamily: fonts.mono,
       fontSize: 12,
       fontVariant: ['tabular-nums'],
       color: colors.textSubtle,
     },
-    revokeButton: {
-      borderColor: colors.destructive,
-      alignSelf: 'flex-start',
-    },
-    revokeButtonText: {
-      color: colors.destructive,
-    },
-    simulateButton: {
+    scanButton: {
       height: 52,
       marginTop: 8,
       borderStyle: 'dashed',

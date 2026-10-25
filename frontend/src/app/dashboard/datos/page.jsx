@@ -15,8 +15,8 @@ export default function DataPage() {
         <span className="section-tag">Bóveda cifrada</span>
         <h1 className="page-header__title">Mis datos</h1>
         <p className="text-muted">
-          Tus datos se guardan cifrados. Solo se comparten cuando apruebas una
-          solicitud desde tu teléfono.
+          Se descifran en este navegador con la contraseña de esta sesión. El
+          servidor solo guarda el cifrado.
         </p>
       </header>
 
@@ -40,7 +40,7 @@ export default function DataPage() {
                 const sites = sharedWith(field);
                 return (
                   <tr key={field}>
-                    <td>{DATA_FIELDS[field]}</td>
+                    <td>{DATA_FIELDS[field] ?? field}</td>
                     <td>
                       <code>{value}</code>
                     </td>

@@ -22,13 +22,9 @@ export default function DashboardHome() {
           Hola, {profile ? profile.name.split(" ")[0] : "invitado"}
         </h1>
         <p className="text-muted">
-          {profile ? (
-            <>
-              Identidad verificada el {profile.verifiedAt} · <code>{profile.zeroId}</code>
-            </>
-          ) : (
-            "Identidad sin verificar"
-          )}
+          {profile
+            ? "Tu bóveda está cifrada. Cada acceso se confirma en el teléfono."
+            : "Identidad sin verificar"}
         </p>
       </header>
 

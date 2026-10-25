@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.zeroid.mobile",
       "infoPlist": {
-        "NSCameraUsageDescription": "Necesitamos acceso a la cámara para fotografiar tu pasaporte y tomar una selfie de verificación."
+        "NSCameraUsageDescription": "Necesitamos acceso a la cámara para escanear códigos QR de login.",
+        "NSFaceIDUsageDescription": "ZeroID usa Face ID para confirmar que eres tú antes de aprobar un acceso."
       }
     },
     "android": {
@@ -42,12 +43,20 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Necesitamos acceso a la cámara para fotografiar tu pasaporte y tomar una selfie de verificación."
+          "cameraPermission": "Necesitamos acceso a la cámara para escanear códigos QR de login."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "ZeroID usa Face ID para confirmar que eres tú antes de aprobar un acceso."
         }
       ],
       "expo-router",
       "expo-font",
-      "expo-splash-screen"
+      "expo-secure-store",
+      "expo-splash-screen",
+      "expo-notifications"
     ],
     "extra": {
       "router": {

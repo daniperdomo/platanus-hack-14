@@ -9,12 +9,14 @@ import StepContacts from "@/components/api-request/StepContacts";
 import StepDocuments from "@/components/api-request/StepDocuments";
 import StepIntegration from "@/components/api-request/StepIntegration";
 import StepReview from "@/components/api-request/StepReview";
+import { registerClient } from "@/lib/api";
 import {
   DOCUMENTS,
+  isAllowedOrigin,
   isDocumentRequired,
   isEmail,
   isHttpsUrl,
-  issueCredentials,
+  parseDomains,
 } from "@/lib/apiRequest";
 import { DATA_FIELDS } from "@/lib/mockData";
 
@@ -91,9 +93,11 @@ function validate(step, form) {
   }
 
   if (step === 2) {
-    const domains = form.integration.domains.split("\n").map((d) => d.trim()).filter(Boolean);
+    const domains = parseDomains(form.integration.domains);
     if (domains.length === 0) errors.domains = "Agrega al menos un dominio.";
-    else if (!domains.every(isHttpsUrl)) errors.domains = "Cada dominio debe empezar con https://";
+    else if (!domains.every(isAllowedOrigin)) {
+      errors.domains = "Cada dominio debe empezar con https:// (o http://localhost para pruebas).";
+    }
     if (!isHttpsUrl(form.integration.redirectUri)) {
       errors.redirectUri = "Usa una URL completa con https://";
     }
@@ -129,6 +133,7 @@ export default function RequestApiPage() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [credentials, setCredentials] = useState(null);
 
   function update(section, key, value) {
@@ -163,9 +168,10 @@ export default function RequestApiPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function next() {
+  async function next() {
     const found = validate(step, form);
     setErrors(found);
+    setSubmitError("");
     if (Object.keys(found).length > 0) return;
 
     if (step < STEPS.length - 1) {
@@ -174,11 +180,24 @@ export default function RequestApiPage() {
     }
 
     setSubmitting(true);
-    setTimeout(() => {
-      setCredentials(issueCredentials());
-      setSubmitting(false);
+    try {
+      const created = await registerClient({
+        name: form.company.tradeName.trim(),
+        origins: parseDomains(form.integration.domains),
+        redirectUri: form.integration.redirectUri.trim(),
+      });
+      setCredentials({
+        clientId: created.client_id,
+        clientSecret: created.client_secret,
+        origins: created.origins,
+        issuedAt: new Date().toLocaleString("sv-SE", { dateStyle: "short", timeStyle: "short" }),
+      });
       window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 1200);
+    } catch (error) {
+      setSubmitError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const hasErrors = Object.keys(errors).length > 0;
@@ -276,6 +295,11 @@ export default function RequestApiPage() {
                 {hasErrors && (
                   <p className="form-alert" role="alert">
                     Revisa los campos marcados antes de continuar.
+                  </p>
+                )}
+                {submitError && (
+                  <p className="form-alert" role="alert">
+                    {submitError}
                   </p>
                 )}
 

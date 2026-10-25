@@ -1,33 +1,39 @@
-"use client";
-
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
+import Link from "next/link";
 import VaultFlow from "@/components/VaultFlow";
+
+export const metadata = {
+  title: "Prueba de vida — ZeroID",
+  description:
+    "Comprueba que eres tú. La cámara no sale de este navegador.",
+};
 
 export default function BovedaPage() {
   return (
-    <>
-      <Nav />
-      <main className="vault">
-        <div className="container vault__layout">
-          <header className="vault__intro">
+    <main className="flow">
+      <div className="container flow__bar">
+        <Link href="/" className="nav__brand">
+          <span className="logo-mark" />
+          ZeroID
+        </Link>
+        <Link href="/registrar" className="flow__back">
+          ← Volver al pasaporte
+        </Link>
+      </div>
+      <div className="container">
+        <div className="register">
+          <header className="register__intro">
             <span className="section-tag">Bóveda</span>
-            <h1 className="vault__title">Prueba de vida en el borde</h1>
-            <p className="vault__lead">
-              MediaPipe Face Mesh corre en WebAssembly dentro de tu navegador.
-              Te pedimos movimientos físicos; si los cumples, extraemos{" "}
-              <strong>una sola foto</strong>. Ningún stream de video viaja al
-              servidor.
+            <h1 className="section__title">Comprueba que eres tú.</h1>
+            <p className="section__desc">
+              La cámara se queda en este navegador. Te pedimos un gesto, sacamos
+              una sola foto y apagamos el video. Ningún stream viaja al servidor.
             </p>
           </header>
-
-          <section className="vault__card">
-            <h2>Liveness activo</h2>
+          <section className="register__panel">
             <VaultFlow />
           </section>
         </div>
-      </main>
-      <Footer />
-    </>
+      </div>
+    </main>
   );
 }

@@ -1,4 +1,3 @@
-import json
 from datetime import date
 
 import psycopg
@@ -6,7 +5,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from app.core.config import settings
-from app.core.security import issue_credential
+from app.core.security import issue_credential, parse_device_jwk
 from app.db import database
 from app.services import face, hashing, passport
 from app.services.images import decode_image
@@ -20,6 +19,8 @@ NO_FACE_DETAIL = "No se detectó ningún rostro en la selfie. Asegúrate de tene
 class IngestResponse(BaseModel):
     token: str
     claims: dict
+    # Returned once so the device can encrypt it. The oráculo does not store it.
+    profile: dict
 
 
 def _age(birth_date: date) -> int:
@@ -36,7 +37,7 @@ def ingest(
     device_public_jwk: str = Form(...),
 ):
     try:
-        device_key = json.loads(device_public_jwk)
+        device_key = parse_device_jwk(device_public_jwk)
         selfie_image = decode_image(selfie.file.read())
         document_bytes = document.file.read()
         document_image = decode_image(document_bytes)
@@ -69,5 +70,11 @@ def ingest(
         "mayor_de_edad": _age(document_data.birth_date) >= settings.adult_age,
         "nacionalidad": document_data.nationality,
     }
+    profile = {
+        "nombre": document_data.holder_name,
+        "documento": document_data.document_id,
+        "fecha_nacimiento": document_data.birth_date.isoformat(),
+        "nacionalidad": document_data.nationality,
+    }
     token = issue_credential(claims, device_key, credential_id)
-    return IngestResponse(token=token, claims=claims)
+    return IngestResponse(token=token, claims=claims, profile=profile)

@@ -1,48 +1,91 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { activity, connections, devices, profile, storedData } from "@/lib/mockData";
-import {
-  loadStoredActivity,
-  loadStoredConnections,
-  subscribe,
-} from "@/lib/zeroidConnect";
+import { accountMe, listConnections } from "@/lib/api";
+import { loadVault } from "@/lib/session";
 import { useSession } from "./SessionContext";
 
-const GUEST_VAULT = {
+const EMPTY_VAULT = {
   profile: null,
   storedData: [],
   devices: [],
   connections: [],
   activity: [],
+  error: "",
 };
 
-function merge(stored, mock) {
-  const ids = new Set(stored.map((item) => item.id));
-  return [...stored, ...mock.filter((item) => !ids.has(item.id))];
-}
-
-function load() {
+function present(site) {
+  const when = site.created_at?.slice(0, 16).replace("T", " ") ?? "";
   return {
-    profile,
-    storedData,
-    devices,
-    connections: merge(loadStoredConnections(), connections),
-    activity: merge(loadStoredActivity(), activity),
+    id: site.id,
+    name: site.client_name,
+    domain: site.client_domain || "",
+    status: "activa",
+    connectedAt: when.slice(0, 10),
+    lastAccess: when,
+    fields: site.rules,
+    purpose: "Autorizado desde tu teléfono.",
+    retention: "El sitio recibió solo lo que aprobaste en esa solicitud.",
   };
 }
 
+function devicesFor(paired) {
+  return [
+    { id: "browser", name: "Este navegador", role: "Sesión del dashboard", current: true },
+    {
+      id: "phone",
+      name: "Teléfono · App ZeroID",
+      role: paired ? "Aprueba solicitudes" : "Todavía no vinculado",
+      current: false,
+      lastSeen: paired ? "Vinculado" : "Pendiente",
+    },
+  ];
+}
+
 export default function useVault() {
-  const guest = useSession()?.guest ?? false;
-  const [vault, setVault] = useState({ profile, storedData, devices, connections, activity });
+  const session = useSession();
+  const [vault, setVault] = useState(EMPTY_VAULT);
 
   useEffect(() => {
-    if (guest) return;
-    setVault(load());
-    return subscribe((message) => {
-      if (message.type === "response") setVault(load());
-    });
-  }, [guest]);
+    if (!session || session.guest) return;
+    const decrypted = loadVault() ?? {};
+    const storedData = Object.entries(decrypted).map(([field, value]) => ({
+      field,
+      value: String(value),
+    }));
+    setVault((current) => ({
+      ...current,
+      profile: { name: decrypted.nombre || session.username, username: session.username },
+      storedData,
+      devices: devicesFor(false),
+    }));
 
-  return guest ? GUEST_VAULT : vault;
+    listConnections(session.token)
+      .then((body) => {
+        const connections = body.connections.map(present);
+        setVault((current) => ({
+          ...current,
+          connections,
+          activity: connections.map((site) => ({
+            id: site.id,
+            date: site.lastAccess,
+            site: site.name,
+            type: "Conexión autorizada",
+            fields: site.fields,
+          })),
+        }));
+      })
+      .catch((err) =>
+        setVault((current) => ({
+          ...current,
+          error: err?.message ?? "No pudimos leer tus conexiones.",
+        }))
+      );
+
+    accountMe(session.token)
+      .then((account) => setVault((current) => ({ ...current, devices: devicesFor(account.paired) })))
+      .catch(() => undefined);
+  }, [session]);
+
+  return session?.guest ? EMPTY_VAULT : vault;
 }

@@ -38,7 +38,8 @@ export const MAX_FILE_MB = 10;
 export const ACCEPTED_TYPES = ".pdf,.doc,.docx";
 const ACCEPTED_EXTENSIONS = ["pdf", "doc", "docx"];
 
-// required: true (siempre), "sensitive" (solo si trata datos sensibles), false (opcional).
+// Solo la política de privacidad y el registro de tratamiento son obligatorios; el resto
+// mejora el Trust Score pero no bloquea la solicitud.
 export const DOCUMENTS = [
   {
     key: "politica_privacidad",
@@ -57,40 +58,40 @@ export const DOCUMENTS = [
     key: "retencion",
     title: "Política de retención y eliminación",
     description: "Cuánto tiempo conservan cada dato y cómo lo eliminan.",
-    required: true,
+    required: false,
   },
   {
     key: "seguridad",
     title: "Política de seguridad de la información",
     description: "Cifrado, control de accesos, respaldos y gestión de proveedores.",
-    required: true,
+    required: false,
   },
   {
     key: "incidentes",
     title: "Plan de respuesta a incidentes e historial de brechas",
     description:
       "Procedimiento de notificación y brechas ocurridas en los últimos 3 años (o declaración de que no hubo).",
-    required: true,
+    required: false,
   },
   {
     key: "derechos",
     title: "Procedimiento de derechos del titular",
     description:
       "Canales y plazos para que el usuario acceda, corrija, porte o elimine sus datos.",
-    required: true,
+    required: false,
   },
   {
     key: "terceros",
     title: "Encargados, contratos y transferencias",
     description:
       "Lista de proveedores que procesan datos, sus contratos (DPA) y transferencias internacionales.",
-    required: true,
+    required: false,
   },
   {
     key: "dpia",
     title: "Evaluación de impacto (DPIA)",
-    description: "Análisis de riesgos de los tratamientos de datos sensibles.",
-    required: "sensitive",
+    description: "Análisis de riesgos de los tratamientos de datos sensibles. Recomendado si piden documento o biometría.",
+    required: false,
   },
   {
     key: "certificaciones",
@@ -131,16 +132,17 @@ export function isHttpsUrl(value) {
   }
 }
 
-function randomHex(bytes) {
-  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) =>
-    b.toString(16).padStart(2, "0")
-  ).join("");
+const LOCAL_HOSTS = ["localhost", "127.0.0.1"];
+
+export function isAllowedOrigin(value) {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || (url.protocol === "http:" && LOCAL_HOSTS.includes(url.hostname));
+  } catch {
+    return false;
+  }
 }
 
-export function issueCredentials() {
-  return {
-    clientId: `zid_live_${randomHex(8)}`,
-    clientSecret: `zsk_live_${randomHex(24)}`,
-    issuedAt: new Date().toLocaleString("sv-SE", { dateStyle: "short", timeStyle: "short" }),
-  };
+export function parseDomains(text) {
+  return text.split("\n").map((domain) => domain.trim()).filter(Boolean);
 }

@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function errorMessage(body, status) {
   const { detail } = body;
@@ -50,5 +50,102 @@ export function verify({ token, rules }) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, rules }),
+  });
+}
+
+export function createAuthRequest({ clientName, clientDomain = "", rules = [], fields = [] }) {
+  return request("/auth/requests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_name: clientName,
+      client_domain: clientDomain,
+      rules,
+      fields,
+    }),
+  });
+}
+
+export function getAuthRequest(requestId) {
+  return request(`/auth/requests/${requestId}`);
+}
+
+export function rejectAuthRequest({ requestId, token, signature }) {
+  return request(`/auth/requests/${requestId}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, signature }),
+  });
+}
+
+export function approveAuthRequest({ requestId, token, signature }) {
+  return request(`/auth/requests/${requestId}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, signature }),
+  });
+}
+
+export function collectAuthToken(requestId) {
+  return request(`/auth/requests/${requestId}/token`, { method: "POST" });
+}
+
+export function listConnections(token) {
+  return request("/auth/connections", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function registerAccount(body) {
+  return request("/auth/accounts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function loginAccount({ username, password }) {
+  return request("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export function collectSession(requestId) {
+  return request(`/auth/requests/${requestId}/session`, { method: "POST" });
+}
+
+export function createPairing(payload) {
+  return request("/pairings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payload }),
+  });
+}
+
+export function registerClient({ name, origins, redirectUri = "" }) {
+  return request("/clients", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, origins, redirect_uri: redirectUri }),
+  });
+}
+
+export function getClient(clientId) {
+  return request(`/clients/${encodeURIComponent(clientId)}`);
+}
+
+export function startSignIn({ clientId, origin, username, scopes, fields = [] }) {
+  return request("/auth/sign-in", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ client_id: clientId, origin, username: username || null, scopes, fields }),
+  });
+}
+
+export function accountMe(token) {
+  return request("/auth/accounts/me", {
+    headers: { Authorization: `Bearer ${token}` },
   });
 }

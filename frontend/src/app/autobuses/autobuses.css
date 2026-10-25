@@ -240,6 +240,11 @@
   font-weight: 600;
 }
 
+.bus-received .bus-subject {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
 .bus-modal {
   position: fixed;
   inset: 0;
@@ -277,11 +282,11 @@
   cursor: pointer;
 }
 
-.bus-modal__links {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
+.bus-qr {
+  width: 220px;
+  height: 220px;
+  margin: 0 auto;
+  background: #ffffff;
 }
 
 .bus-divider {

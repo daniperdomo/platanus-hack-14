@@ -109,6 +109,41 @@ def test_invalid_device_jwk_is_422(client, jpeg_bytes, pipeline):
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize(
+    "jwk",
+    [
+        [DEVICE_JWK],
+        "una-llave",
+        {**DEVICE_JWK, "kty": "RSA"},
+        {**DEVICE_JWK, "crv": "P-384"},
+        {key: value for key, value in DEVICE_JWK.items() if key != "y"},
+        {**DEVICE_JWK, "x": "dGVzdC14"},
+    ],
+    ids=["array", "string", "rsa", "p384", "missing-y", "bad-coordinates"],
+)
+def test_device_jwk_must_be_a_public_p256_key(client, jpeg_bytes, pipeline, jwk):
+    response = post_ingest(client, jpeg_bytes, device_public_jwk=json.dumps(jwk))
+    assert response.status_code == 422
+    assert response.json()["detail"] == security.INVALID_DEVICE_JWK_DETAIL
+    assert pipeline["saved"] == []
+
+
+def test_device_jwk_with_private_key_is_422(client, jpeg_bytes, pipeline):
+    response = post_ingest(client, jpeg_bytes, device_public_jwk=json.dumps({**DEVICE_JWK, "d": "secreto"}))
+    assert response.status_code == 422
+    assert response.json()["detail"] == security.PRIVATE_DEVICE_JWK_DETAIL
+    assert pipeline["saved"] == []
+
+
+def test_token_embeds_only_public_jwk_members(client, jpeg_bytes, pipeline):
+    noisy = {**DEVICE_JWK, "kid": "telefono", "alg": "ES256", "ext": True, "key_ops": ["verify"]}
+    response = post_ingest(client, jpeg_bytes, device_public_jwk=json.dumps(noisy))
+    assert response.status_code == 200
+    payload = security.decode_credential(response.json()["token"])
+    assert payload["cnf"]["jwk"] == DEVICE_JWK
+    assert set(payload["cnf"]["jwk"]) == {"kty", "crv", "x", "y"}
+
+
 def test_mrz_failure_is_422_with_message(client, jpeg_bytes, pipeline):
     pipeline["document"] = ValueError("Los dígitos de control de la MRZ no coinciden.")
     response = post_ingest(client, jpeg_bytes)

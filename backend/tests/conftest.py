@@ -1,3 +1,5 @@
+import json
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -5,13 +7,32 @@ import cv2
 import jwt
 import numpy as np
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from fastapi.testclient import TestClient
 
-from app.core import security
-from app.main import app
+# Settings are read on import, so the secrets the app now requires must exist first.
+os.environ["JWT_PRIVATE_KEY"] = (
+    rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    .private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    .decode()
+)
+os.environ["HASH_PEPPER"] = "pepper-de-pruebas"
+
+from app.core import security  # noqa: E402
+from app.main import app  # noqa: E402
 
 CLAIMS = {"persona_real_unica": True, "mayor_de_edad": True, "nacionalidad": "CL"}
-DEVICE_JWK = {"kty": "EC", "crv": "P-256", "x": "test-x", "y": "test-y"}
+DEVICE_KEY = ec.generate_private_key(ec.SECP256R1())
+DEVICE_JWK = {
+    field: value
+    for field, value in json.loads(jwt.algorithms.ECAlgorithm.to_jwk(DEVICE_KEY.public_key())).items()
+    if field in security.DEVICE_JWK_FIELDS
+}
 
 
 @pytest.fixture

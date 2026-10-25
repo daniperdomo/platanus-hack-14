@@ -1,8 +1,9 @@
 export const MAX_LONG_SIDE = 1280;
+export const DOCUMENT_LONG_SIDE = 2000;
 export const JPEG_QUALITY = 0.85;
 
-export function drawToJpeg(source, width, height, name) {
-  const scale = Math.min(1, MAX_LONG_SIDE / Math.max(width, height));
+export function drawToJpeg(source, width, height, name, maxSide = MAX_LONG_SIDE) {
+  const scale = Math.min(1, maxSide / Math.max(width, height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(width * scale);
   canvas.height = Math.round(height * scale);
@@ -23,10 +24,10 @@ export function drawToJpeg(source, width, height, name) {
   });
 }
 
-export async function fileToJpeg(file, name) {
+export async function fileToJpeg(file, name, maxSide = MAX_LONG_SIDE) {
   const bitmap = await createImageBitmap(file);
   try {
-    return await drawToJpeg(bitmap, bitmap.width, bitmap.height, name);
+    return await drawToJpeg(bitmap, bitmap.width, bitmap.height, name, maxSide);
   } finally {
     bitmap.close();
   }
